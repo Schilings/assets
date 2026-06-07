@@ -79,7 +79,7 @@
     </div>
 
 <script>
-const REPO = 'Schilings/assets';
+const BASE = '/assets';
 const API = `https://api.github.com/repos/${REPO}/git/trees/master?recursive=1`;
 
 const ICONS = { megatron:'🧠', vllm:'🚀', operator:'🧮', parallel:'🔗', deepseek:'🔮', rl:'🎮', sglang:'⚡', knowledge:'📚' };
@@ -118,8 +118,8 @@ async function render() {
                 const filename = slash > 0 ? rel.slice(slash+1) : rel;
                 const type = /\.md$/i.test(filename) ? 'md' : 'h5';
                 const href = type === 'md'
-                    ? '/' + t.path.replace(/\.md$/, '.html')
-                    : '/' + t.path;
+                    ? BASE + '/' + t.path.replace(/\.md$/, '.html')
+                    : BASE + '/' + t.path;
                 return { cat, filename, type, href, title: title(filename) };
             });
 

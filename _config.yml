@@ -1,5 +1,6 @@
 title: Schilings's Knowledge Base
 description: 大模型训练与推理技术笔记
+baseurl: /assets
 theme: null
 markdown: kramdown
 kramdown:
