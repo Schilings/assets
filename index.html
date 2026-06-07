@@ -13,130 +13,131 @@
             min-height: 100vh;
             display: flex;
             justify-content: center;
-            align-items: center;
+            align-items: flex-start;
         }
-        .container { max-width: 720px; width: 100%; padding: 40px 24px; }
-        h1 { font-size: 2rem; color: #f0f6fc; margin-bottom: 6px; }
-        .subtitle { color: #8b949e; margin-bottom: 32px; font-size: .95rem; }
+        .container { max-width: 760px; width: 100%; padding: 48px 24px; }
+        h1 { font-size: 2rem; color: #f0f6fc; margin-bottom: 4px; }
+        .subtitle { color: #8b949e; margin-bottom: 36px; font-size: .95rem; }
         .section-title {
             color: #58a6ff; font-size: .85rem; font-weight: 600;
             text-transform: uppercase; letter-spacing: 1px;
             margin: 28px 0 12px; padding-bottom: 6px;
             border-bottom: 1px solid #21262d;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .section-title .count {
+            background: #1f6feb33; color: #58a6ff;
+            font-size: .72rem; padding: 1px 7px; border-radius: 10px;
         }
         .card-list { display: flex; flex-direction: column; gap: 10px; }
         .card {
             display: flex; align-items: center; gap: 14px;
             background: #161b22; border: 1px solid #30363d;
-            border-radius: 8px; padding: 16px 20px;
+            border-radius: 8px; padding: 14px 20px;
             text-decoration: none; color: #c9d1d9;
             transition: border-color .2s, background .2s;
         }
         .card:hover { border-color: #58a6ff; background: #1c2129; }
-        .card-icon { font-size: 1.4rem; flex-shrink: 0; }
-        .card-body { flex: 1; }
-        .card-title { font-size: 1rem; font-weight: 600; color: #58a6ff; margin-bottom: 2px; }
-        .card-desc { color: #8b949e; font-size: .82rem; }
+        .card-icon { font-size: 1.2rem; flex-shrink: 0; }
+        .card-body { flex: 1; min-width: 0; }
+        .card-title { font-size: .95rem; font-weight: 600; color: #58a6ff; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .card-tag {
-            font-size: .7rem; padding: 2px 8px; border-radius: 10px;
-            font-weight: 600; text-transform: uppercase;
+            font-size: .68rem; padding: 2px 8px; border-radius: 10px;
+            font-weight: 600; text-transform: uppercase; flex-shrink: 0;
         }
         .tag-html { background: #1f6feb22; color: #58a6ff; }
         .tag-md { background: #23863622; color: #3fb950; }
+        .empty { color: #484f58; font-size: .88rem; padding: 12px 0; }
+        .footer { margin-top: 40px; text-align: center; color: #484f58; font-size: .78rem; }
+        .footer a { color: #8b949e; text-decoration: none; }
+        .footer a:hover { color: #58a6ff; }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Knowledge Base</h1>
-        <p class="subtitle">大模型训练与推理技术笔记</p>
+        <p class="subtitle">大模型训练与推理技术笔记 — 丢文件到 md/ 或 h5/ 即自动上线</p>
 
-        <div class="section-title">Knowledge</div>
-        <div class="card-list">
-            <a class="card" href="knowledge.html">
-                <span class="card-icon">📚</span>
-                <div class="card-body">
-                    <div class="card-title">Knowledge 知识库</div>
-                    <div class="card-desc">算子、并行策略、DeepSeek、vLLM 等技术链接合集</div>
-                </div>
-                <span class="card-tag tag-md">MD</span>
-            </a>
-        </div>
+        <div class="section-title">Markdown <span class="count" id="md-count">-</span></div>
+        <div class="card-list" id="md-list"><div class="empty">加载中...</div></div>
 
-        <div class="section-title">Megatron</div>
-        <div class="card-list">
-            <a class="card" href="megatron/insights.html">
-                <span class="card-icon">🧠</span>
-                <div class="card-body">
-                    <div class="card-title">Megatron-LM 新感悟</div>
-                    <div class="card-desc">ParallelState、Hybrid CP、DDP、Optimizer 深度分析</div>
-                </div>
-                <span class="card-tag tag-md">MD</span>
-            </a>
-            <a class="card" href="megatron/sp-analysis.html">
-                <span class="card-icon">📊</span>
-                <div class="card-body">
-                    <div class="card-title">Megatron SP 深度分析</div>
-                    <div class="card-desc">Sequence Parallelism 可视化分析</div>
-                </div>
-                <span class="card-tag tag-html">HTML</span>
-            </a>
-            <a class="card" href="megatron/fine-grained-offload.html">
-                <span class="card-icon">⚡</span>
-                <div class="card-body">
-                    <div class="card-title">Fine-Grained Offload (HTML)</div>
-                    <div class="card-desc">细粒度 Activation Offload 可视化分析</div>
-                </div>
-                <span class="card-tag tag-html">HTML</span>
-            </a>
-            <a class="card" href="megatron/fine-grained-offload-detail.html">
-                <span class="card-icon">🔧</span>
-                <div class="card-body">
-                    <div class="card-title">Fine-Grained Offload (MD)</div>
-                    <div class="card-desc">ChunkOffloadHandler、PipelineOffloadManager 源码级分析</div>
-                </div>
-                <span class="card-tag tag-md">MD</span>
-            </a>
-            <a class="card" href="megatron/context-parallel.html">
-                <span class="card-icon">🔗</span>
-                <div class="card-body">
-                    <div class="card-title">Hierarchical Context Parallel</div>
-                    <div class="card-desc">HCP 通讯组分布、A2A+P2P 通信模式深度解析</div>
-                </div>
-                <span class="card-tag tag-md">MD</span>
-            </a>
-        </div>
+        <div class="section-title">HTML5 <span class="count" id="h5-count">-</span></div>
+        <div class="card-list" id="h5-list"><div class="empty">加载中...</div></div>
 
-        <div class="section-title">vLLM</div>
-        <div class="card-list">
-            <a class="card" href="vllm/sp.html">
-                <span class="card-icon">🚀</span>
-                <div class="card-body">
-                    <div class="card-title">vLLM SP</div>
-                    <div class="card-desc">vLLM Sequence Parallelism 深度笔记</div>
-                </div>
-                <span class="card-tag tag-html">HTML</span>
-            </a>
-            <a class="card" href="vllm/async-sp-symm-mem.html">
-                <span class="card-icon">🔄</span>
-                <div class="card-body">
-                    <div class="card-title">vLLM Async SP — Symmetric Memory</div>
-                    <div class="card-desc">异步 SP 与对称内存深度解析</div>
-                </div>
-                <span class="card-tag tag-html">HTML</span>
-            </a>
-        </div>
-
-        <div class="section-title">Operators</div>
-        <div class="card-list">
-            <a class="card" href="BF16_GEMM_RS_详解.html">
-                <span class="card-icon">🧮</span>
-                <div class="card-body">
-                    <div class="card-title">BF16 GEMM-RS 两阶段算子详解</div>
-                    <div class="card-desc">Blackwell 架构 BF16 GEMM + Reduce-Scatter 融合算子</div>
-                </div>
-                <span class="card-tag tag-md">MD</span>
-            </a>
+        <div class="footer">
+            <a href="https://github.com/Schilings/assets">GitHub Repo</a> · 丢文件到 <code>md/</code> 或 <code>h5/</code> 目录，push 后自动出现
         </div>
     </div>
+
+<script>
+const REPO = 'Schilings/assets';
+const BRANCH = 'master';
+const base = `https://api.github.com/repos/${REPO}/git/trees/${BRANCH}`;
+
+async function fetchTree(path) {
+    const res = await fetch(`${base}?recursive=1`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.tree.filter(t => t.type === 'blob' && t.path.startsWith(path + '/'));
+}
+
+function nameToTitle(filename) {
+    return filename.replace(/\.(md|html)$/i, '')
+        .replace(/[-_]/g, ' ')
+        .replace(/和/g, ' & ');
+}
+
+function buildCard(name, href, type) {
+    const icon = type === 'md' ? '📝' : '🌐';
+    const tagClass = type === 'md' ? 'tag-md' : 'tag-html';
+    const tagText = type === 'md' ? 'MD' : 'HTML';
+    return `<a class="card" href="${href}">
+        <span class="card-icon">${icon}</span>
+        <div class="card-body"><div class="card-title">${name}</div></div>
+        <span class="card-tag ${tagClass}">${tagText}</span>
+    </a>`;
+}
+
+async function render() {
+    try {
+        const [mdFiles, h5Files] = await Promise.all([
+            fetchTree('md'),
+            fetchTree('h5')
+        ]);
+
+        const mdList = document.getElementById('md-list');
+        const h5List = document.getElementById('h5-list');
+        const mdCount = document.getElementById('md-count');
+        const h5Count = document.getElementById('h5-count');
+
+        mdCount.textContent = mdFiles.length;
+        h5Count.textContent = h5Files.length;
+
+        if (mdFiles.length) {
+            mdList.innerHTML = mdFiles.map(f => {
+                const name = f.path.replace('md/', '');
+                const href = f.path.replace(/\.md$/, '.html');
+                return buildCard(nameToTitle(name), href, 'md');
+            }).join('');
+        } else {
+            mdList.innerHTML = '<div class="empty">暂无 Markdown 文件</div>';
+        }
+
+        if (h5Files.length) {
+            h5List.innerHTML = h5Files.map(f => {
+                const name = f.path.replace('h5/', '');
+                return buildCard(nameToTitle(name), '/' + f.path, 'h5');
+            }).join('');
+        } else {
+            h5List.innerHTML = '<div class="empty">暂无 HTML 文件</div>';
+        }
+    } catch (e) {
+        document.getElementById('md-list').innerHTML = '<div class="empty">加载失败，请刷新重试</div>';
+        document.getElementById('h5-list').innerHTML = '<div class="empty">加载失败，请刷新重试</div>';
+    }
+}
+
+render();
+</script>
 </body>
 </html>

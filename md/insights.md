@@ -1255,7 +1255,7 @@ if self.param_update_in_fp32 and param.dtype != torch.float32:
 
 #### 1. 入口：`initialize_model_parallel` 中的参数
 
-在 [parallel_state.py](Megatron-LM/megatron/core/parallel_state.py) 的 `initialize_model_parallel` 函数中，有一个关键参数：
+在 `parallel_state.py` 的 `initialize_model_parallel` 函数中，有一个关键参数：
 
 ```python
 hierarchical_context_parallel_sizes: Optional[List[int]] = None
@@ -1463,7 +1463,7 @@ Async Wo-Split Ulysses + Async SP（Reduce Scatter FWD + All Gather Backward）
 
 ### Fine-grained Offload
 
-🌟[Fine-Grained Offload HTML](/megatron/fine-grained-offload.html) | [Fine-Grained Offload MD](https://github.com/Schilings/Knowledge/blob/main/megatron/fine-grained-offload.md)
+🌟[Fine-Grained Offload HTML](/h5/fine-grained-offload.html) | [Fine-Grained Offload MD](/md/fine-grained-offload-detail.html)
 
 
 
