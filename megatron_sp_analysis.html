@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Megatron Sequence Parallelism (SP) 深度分析</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-light: #eff6ff;
+            --accent: #f59e0b;
+            --success: #10b981;
+            --danger: #ef4444;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-600: #4b5563;
+            --gray-800: #1f2937;
+            --gray-900: #111827;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif;
+            line-height: 1.8;
+            color: var(--gray-800);
+            background: var(--gray-50);
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+        }
+
+        header {
+            text-align: center;
+            padding: 3rem 0 2rem;
+            border-bottom: 2px solid var(--gray-200);
+            margin-bottom: 3rem;
+        }
+
+        header h1 {
+            font-size: 2.2rem;
+            color: var(--gray-900);
+            margin-bottom: 0.5rem;
+        }
+
+        header p {
+            color: var(--gray-600);
+            font-size: 1rem;
+        }
+
+        h2 {
+            font-size: 1.6rem;
+            color: var(--gray-900);
+            margin: 2.5rem 0 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--primary);
+            display: inline-block;
+        }
+
+        h3 {
+            font-size: 1.2rem;
+            color: var(--gray-800);
+            margin: 1.5rem 0 0.8rem;
+        }
+
+        p { margin-bottom: 1rem; }
+
+        .section {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+
+        .highlight-box {
+            background: var(--primary-light);
+            border-left: 4px solid var(--primary);
+            padding: 1rem 1.5rem;
+            border-radius: 0 8px 8px 0;
+            margin: 1rem 0;
+        }
+
+        .warn-box {
+            background: #fef3c7;
+            border-left: 4px solid var(--accent);
+            padding: 1rem 1.5rem;
+            border-radius: 0 8px 8px 0;
+            margin: 1rem 0;
+        }
+
+        .danger-box {
+            background: #fef2f2;
+            border-left: 4px solid var(--danger);
+            padding: 1rem 1.5rem;
+            border-radius: 0 8px 8px 0;
+            margin: 1rem 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-size: 0.9rem;
+        }
+
+        th, td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--gray-200);
+        }
+
+        th {
+            background: var(--gray-100);
+            font-weight: 600;
+            color: var(--gray-900);
+        }
+
+        tr:hover td { background: var(--gray-50); }
+
+        code {
+            font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+            background: var(--gray-100);
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.85em;
+            color: var(--primary);
+        }
+
+        pre {
+            background: var(--gray-900);
+            color: #e5e7eb;
+            padding: 1.5rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1rem 0;
+            font-size: 0.85rem;
+            line-height: 1.6;
+        }
+
+        pre code {
+            background: none;
+            color: inherit;
+            padding: 0;
+            font-size: inherit;
+        }
+
+        .keyword { color: #c084fc; }
+        .string { color: #34d399; }
+        .comment { color: #6b7280; font-style: italic; }
+        .func { color: #60a5fa; }
+        .param { color: #fbbf24; }
+
+        .flow-diagram {
+            background: white;
+            border: 2px solid var(--gray-200);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            line-height: 1.8;
+            overflow-x: auto;
+            white-space: pre;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge-green { background: #d1fae5; color: #065f46; }
+        .badge-yellow { background: #fef3c7; color: #92400e; }
+        .badge-red { background: #fce4ec; color: #b71c1c; }
+        .badge-blue { background: #dbeafe; color: #1e40af; }
+
+        .comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .comparison > div {
+            background: var(--gray-50);
+            padding: 1.2rem;
+            border-radius: 8px;
+            border: 1px solid var(--gray-200);
+        }
+
+        .comparison h4 {
+            margin-bottom: 0.5rem;
+            color: var(--primary);
+        }
+
+        .timeline {
+            position: relative;
+            padding-left: 2rem;
+            margin: 1.5rem 0;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 0.5rem;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--primary);
+        }
+
+        .timeline-item {
+            position: relative;
+            margin-bottom: 1.2rem;
+            padding: 0.8rem 1rem;
+            background: var(--gray-50);
+            border-radius: 8px;
+            border: 1px solid var(--gray-200);
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -1.75rem;
+            top: 1.2rem;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--primary);
+        }
+
+        .toc {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+
+        .toc h3 { margin-bottom: 0.8rem; color: var(--gray-900); }
+
+        .toc ol {
+            padding-left: 1.5rem;
+        }
+
+        .toc li {
+            margin-bottom: 0.4rem;
+        }
+
+        .toc a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        .toc a:hover { text-decoration: underline; }
+
+        @media (max-width: 768px) {
+            .comparison { grid-template-columns: 1fr; }
+            header h1 { font-size: 1.6rem; }
+            .container { padding: 1rem; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+
+<header>
+    <h1>Megatron Sequence Parallelism (SP) 深度分析</h1>
+    <p>从 TP 正交性出发，深入理解 SP 的梯度同步机制</p>
+</header>
+
+<nav class="toc">
+    <h3>目录</h3>
+    <ol>
+        <li><a href="#background">背景：TP 与 DP 的正交性</a></li>
+        <li><a href="#tp-split">TP 域的权重切分策略</a></li>
+        <li><a href="#sp-problem">SP 引入的梯度同步问题</a></li>
+        <li><a href="#sp-solution">Megatron 的 SP 梯度同步方案</a></li>
+        <li><a href="#dataflow">SP 模式下的完整数据流</a></li>
+        <li><a href="#loss">Loss 计算方式对梯度同步的影响</a></li>
+        <li><a href="#avg-vs-sum">average_gradients_across_tp_domain vs sequence_parallel</a></li>
+        <li><a href="#summary">总结</a></li>
+    </ol>
+</nav>
+
+<!-- Section 1 -->
+<section class="section" id="background">
+    <h2>1. 背景：TP 与 DP 的正交性</h2>
+
+    <p>在 Megatron 的设计中，<strong>Tensor Parallelism (TP)</strong> 和 <strong>Data Parallelism (DP)</strong> 是正交的：</p>
+
+    <div class="highlight-box">
+        <strong>核心原理：</strong>TP 只对 Linear / Embedding / LM-Head 等权重进行切割。在 TP 域中，未切分的权重（如 LayerNorm）在每个 rank 上是完整保存的，且由于它们看到的是<strong>相同的数据</strong>，backward 产生的梯度天然一致，无需 TP 内同步。
+    </div>
+
+    <p>因此：</p>
+    <ul style="padding-left: 1.5rem; margin-bottom: 1rem;">
+        <li><strong>切分的权重</strong>（Linear）：TP 通信（AllReduce/AllGather）保证各分片拿到正确梯度</li>
+        <li><strong>未切分的权重</strong>（Norm, bias）：各 rank 输入相同 → 梯度天然相同 → 无需同步</li>
+        <li><strong>DP 不侵入 TP 域</strong>：DP 只在 TP group 之间做梯度同步</li>
+    </ul>
+
+    <div class="warn-box">
+        <strong>但是！</strong>当引入 Sequence Parallelism 后，这个「未切分权重看到相同数据」的前提被打破了。
+    </div>
+</section>
+
+<!-- Section 2 -->
+<section class="section" id="tp-split">
+    <h2>2. TP 域的权重切分策略</h2>
+
+    <table>
+        <thead>
+            <tr>
+                <th>层</th>
+                <th>权重</th>
+                <th>切分方式</th>
+                <th>Shape</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>ColumnParallelLinear</strong><br><small>(QKV proj, FC1)</small></td>
+                <td><code>weight</code></td>
+                <td><span class="badge badge-blue">沿 dim=0 (输出维) 切分</span></td>
+                <td><code>[out/TP, in]</code></td>
+            </tr>
+            <tr>
+                <td></td>
+                <td><code>bias</code></td>
+                <td><span class="badge badge-blue">沿输出维切分</span></td>
+                <td><code>[out/TP]</code></td>
+            </tr>
+            <tr>
+                <td><strong>RowParallelLinear</strong><br><small>(Out proj, FC2)</small></td>
+                <td><code>weight</code></td>
+                <td><span class="badge badge-blue">沿 dim=1 (输入维) 切分</span></td>
+                <td><code>[out, in/TP]</code></td>
+            </tr>
+            <tr>
+                <td></td>
+                <td><code>bias</code></td>
+                <td><span class="badge badge-green">不切分（完整复制）</span></td>
+                <td><code>[out]</code></td>
+            </tr>
+            <tr>
+                <td><strong>VocabParallelEmbedding</strong></td>
+                <td><code>weight</code></td>
+                <td><span class="badge badge-blue">沿词表维切分</span></td>
+                <td><code>[vocab/TP, dim]</code></td>
+            </tr>
+            <tr>
+                <td><strong>LayerNorm / RMSNorm</strong></td>
+                <td><code>weight</code>, <code>bias</code></td>
+                <td><span class="badge badge-green">不切分（完整复制）</span></td>
+                <td><code>[hidden]</code></td>
+            </tr>
+            <tr>
+                <td><strong>MoE Router</strong></td>
+                <td><code>weight</code></td>
+                <td><span class="badge badge-green">不切分（完整复制）</span></td>
+                <td><code>[num_experts, hidden]</code></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3>ColumnParallelLinear (列并行)</h3>
+    <pre><code><span class="comment"># Y = XA + b, 其中 A 沿列（输出维）切分: A = [A_1, ..., A_p]</span>
+<span class="comment"># 每个 TP rank 计算: Y_i = X @ A_i</span>
+self.output_size_per_partition = divide(output_size, world_size)
+self.weight = Parameter(torch.empty(
+    self.output_size_per_partition, self.input_size  <span class="comment"># [out/TP, in]</span>
+))
+_initialize_affine_weight_gpu(self.weight, init_method, <span class="param">partition_dim=0</span>)</code></pre>
+
+    <h3>RowParallelLinear (行并行)</h3>
+    <pre><code><span class="comment"># Y = XA + b, 其中 A 沿行（输入维）切分</span>
+<span class="comment"># 输入也被切分: X = [X_1, ..., X_p]</span>
+<span class="comment"># 每个 TP rank 计算: Y_i = X_i @ A_i, 然后 AllReduce 求和</span>
+self.input_size_per_partition = divide(input_size, world_size)
+self.weight = Parameter(torch.empty(
+    self.output_size, self.input_size_per_partition  <span class="comment"># [out, in/TP]</span>
+))
+_initialize_affine_weight_gpu(self.weight, init_method, <span class="param">partition_dim=1</span>)</code></pre>
+</section>
+
+<!-- Section 3 -->
+<section class="section" id="sp-problem">
+    <h2>3. SP 引入的梯度同步问题</h2>
+
+    <p>SP 的核心思想是：将 TP 中 Linear 层之间的<strong>冗余激活</strong>（每个 rank 都持有完整 <code>[S, B, H]</code>）改为各 rank 只持有 <code>[S/TP, B, H]</code>，从而节省显存。</p>
+
+    <div class="comparison">
+        <div>
+            <h4>纯 TP（无 SP）</h4>
+            <p>LayerNorm 输入: <code>[S, B, H]</code><br>
+            每个 TP rank 看到<strong>完整序列</strong><br>
+            → 梯度天然一致 ✅</p>
+        </div>
+        <div>
+            <h4>TP + SP</h4>
+            <p>LayerNorm 输入: <code>[S/TP, B, H]</code><br>
+            每个 TP rank 只看到<strong>部分序列</strong><br>
+            → 梯度只是全局的 1/TP ⚠️</p>
+        </div>
+    </div>
+
+    <div class="danger-box">
+        <strong>问题本质：</strong>
+        <p>LayerNorm 的参数梯度 <code>∂L/∂γ = Σ_tokens(∂L/∂y_t · norm(x_t))</code></p>
+        <p>SP 下每个 rank 只累加了 <code>S/TP</code> 个 token 的梯度贡献，得到的是局部梯度，<strong>必须跨 TP group AllReduce SUM</strong> 才能得到完整的全局梯度。</p>
+    </div>
+
+    <h3>受影响的参数</h3>
+    <table>
+        <thead>
+            <tr><th>参数</th><th>原因</th></tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>LayerNorm.weight</code> / <code>LayerNorm.bias</code></td>
+                <td>逐 token 计算，SP 下每个 rank 只看到部分 token</td>
+            </tr>
+            <tr>
+                <td><code>RowParallelLinear.bias</code></td>
+                <td>bias 作用在 ReduceScatter 后的分片输出上，同理只看到部分序列</td>
+            </tr>
+            <tr>
+                <td><code>Router.weight</code> (MoE)</td>
+                <td>Router 对分片后的 token 做路由决策</td>
+            </tr>
+            <tr>
+                <td><code>qk_layernorm</code> 参数</td>
+                <td>对 Q/K 做 norm，输入也是分片的</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3>而 Linear 层的 weight 不受影响！</h3>
+    <div class="highlight-box">
+        <strong>关键洞察：</strong>Linear 层的 weight 梯度通过 forward/backward 中的 AllGather/ReduceScatter 通信操作<strong>已经隐式获得了完整序列的信息</strong>，不需要额外的梯度同步。
+        <ul style="padding-left: 1.5rem; margin-top: 0.5rem;">
+            <li><strong>ColumnParallelLinear</strong>：前向 AllGather input 恢复为 <code>[S, B, H]</code> → backward 时 weight gradient 用完整 input 计算 → 天然正确</li>
+            <li><strong>RowParallelLinear</strong>：前向 ReduceScatter output → backward AllGather grad_output → weight gradient 用完整 grad 计算 → 天然正确</li>
+        </ul>
+    </div>
+</section>
+
+<!-- Section 4 -->
+<section class="section" id="sp-solution">
+    <h2>4. Megatron 的 SP 梯度同步方案</h2>
+
+    <h3>4.1 标记参数：<code>param.sequence_parallel = True</code></h3>
+
+    <p>Megatron 中所有接收 SP 切分数据的"非 TP 切分"参数，在创建时都会被打上 <code>sequence_parallel=True</code> 标记：</p>
+
+    <pre><code><span class="comment"># megatron/core/fusions/fused_layer_norm.py — Megatron 自带的 FusedLayerNorm</span>
+self.weight = Parameter(torch.empty(*hidden_size))
+self.bias = Parameter(torch.empty(*hidden_size))
+self.sequence_parallel = self.config.sequence_parallel
+<span class="comment"># set sequence parallelism flag on weight and bias parameters</span>
+<span class="func">setattr</span>(self.weight, <span class="string">'sequence_parallel'</span>, self.sequence_parallel)
+<span class="func">setattr</span>(self.bias, <span class="string">'sequence_parallel'</span>, self.sequence_parallel)
+
+<span class="comment"># tensor_parallel/layers.py — RowParallelLinear.bias</span>
+<span class="func">setattr</span>(self.bias, <span class="string">"sequence_parallel"</span>, self.sequence_parallel)
+
+<span class="comment"># transformer/moe/router.py — MoE Router weight</span>
+<span class="func">setattr</span>(self.weight, <span class="string">'sequence_parallel'</span>, self.config.sequence_parallel)
+
+<span class="comment"># transformer/moe/shared_experts.py — Shared Expert gate_weight</span>
+<span class="func">setattr</span>(self.gate_weight, <span class="string">'sequence_parallel'</span>, self.config.sequence_parallel)</code></pre>
+
+    <h3>4.1.1 不同 Norm 实现的 SP 梯度处理机制</h3>
+
+    <p>Megatron 支持多种 Norm 实现，它们处理 SP 梯度同步的方式有所不同：</p>
+
+    <table>
+        <thead>
+            <tr><th>Norm 实现</th><th>如何设置</th><th>梯度同步方式</th><th>备注</th></tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>FusedLayerNorm</strong><br><small><code>megatron/core/fusions/</code></small></td>
+                <td>给 weight/bias 设 <code>sequence_parallel=True</code></td>
+                <td><code>finalize_model_grads</code> → AllReduce <span class="badge badge-blue">SUM</span></td>
+                <td>Megatron 原生实现，显式标记</td>
+            </tr>
+            <tr>
+                <td><strong>TENorm (TE LayerNorm/RMSNorm)</strong><br><small><code>transformer_engine.pytorch</code></small></td>
+                <td>构造时传 <code>sequence_parallel=True</code></td>
+                <td>TE kernel <strong>backward 内部自动做</strong> AllReduce <span class="badge badge-blue">SUM</span></td>
+                <td>不依赖 <code>finalize_model_grads</code>，kernel 级融合</td>
+            </tr>
+            <tr>
+                <td><strong>nn.LayerNorm (PyTorch 原生)</strong></td>
+                <td>Megatron 的 <code>torch_norm.py</code> 中 <code>assert not config.sequence_parallel</code></td>
+                <td><span class="badge badge-red">不支持 SP</span></td>
+                <td>如需使用，必须手动给参数设属性</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="warn-box">
+        <strong>关键发现：</strong>如果自定义模型使用 <code>nn.LayerNorm</code> 作为 Norm 层（而非 TENorm 或 FusedLayerNorm），
+        必须<strong>手动</strong>给其 weight/bias 设置 <code>sequence_parallel=True</code>，否则 <code>finalize_model_grads</code>
+        不会收集该参数的梯度进行 AllReduce SUM，导致梯度不完整（仅为正确值的 1/TP）。
+        <br><br>
+        <strong>常见错误：</strong>误用 <code>average_gradients_across_tp_domain=True</code>（AVG）来代替 <code>sequence_parallel=True</code>（SUM）。
+        虽然在等长序列 + local mean loss 模式下"碰巧"能得到正确结果（local_mean × TP → AVG = global_mean），
+        但在 per-token loss 模式下会导致梯度偏小 TP 倍。而且 AVG 和 SUM 的语义完全不同：
+        <ul style="padding-left: 1.5rem; margin-top: 0.5rem;">
+            <li><strong>SUM</strong>：每个 rank 只有局部梯度，需要加起来得到完整梯度</li>
+            <li><strong>AVG</strong>：每个 rank 已有完整梯度（仅有微小数值差异），取平均防漂移</li>
+        </ul>
+    </div>
+
+    <h3>4.1.2 TE Norm 的内部机制</h3>
+    <pre><code><span class="comment"># extensions/transformer_engine.py — TENorm 构造时传入 sequence_parallel</span>
+<span class="keyword">class</span> <span class="func">TENorm</span>:
+    <span class="keyword">def</span> <span class="func">__new__</span>(cls, config, hidden_size, eps):
+        norm_module = te.pytorch.LayerNorm  <span class="comment"># 或 RMSNorm</span>
+        instance = norm_module(
+            normalized_shape=hidden_size,
+            eps=eps,
+            <span class="param">sequence_parallel=config.sequence_parallel</span>,  <span class="comment"># ← 传给 TE</span>
+            zero_centered_gamma=config.layernorm_zero_centered_gamma,
+        )
+        <span class="keyword">return</span> instance
+
+<span class="comment"># TE 内部处理:</span>
+<span class="comment"># 当 sequence_parallel=True 时，TE LayerNorm 的 backward 会自动</span>
+<span class="comment"># 对 weight.grad 和 bias.grad 做 AllReduce SUM（在 kernel 内融合），</span>
+<span class="comment"># 不需要 Megatron finalize_model_grads 再处理。</span></code></pre>
+
+    <h3>4.2 训练步结束时统一 AllReduce</h3>
+    <pre><code><span class="comment"># finalize_model_grads.py</span>
+<span class="keyword">def</span> <span class="func">_allreduce_non_tensor_model_parallel_grads</span>(model, config, tp_group):
+    <span class="string">"""对 sequence_parallel 标记的参数梯度做 TP group AllReduce SUM"""</span>
+    <span class="keyword">if</span> tp_group.size() <= 1:
+        <span class="keyword">return</span>
+
+    grads_sum = []
+    <span class="keyword">for</span> name, param <span class="keyword">in</span> model.named_parameters():
+        <span class="keyword">if</span> param.requires_grad:
+            <span class="keyword">if</span> config.sequence_parallel <span class="keyword">and</span> <span class="func">getattr</span>(param, <span class="string">"sequence_parallel"</span>, False):
+                grads_sum.append(param.main_grad.data)
+
+    <span class="keyword">if</span> grads_sum:
+        coalesced = <span class="func">_flatten_dense_tensors</span>(grads_sum)
+        torch.distributed.<span class="func">all_reduce</span>(coalesced, op=ReduceOp.<span class="param">SUM</span>, group=tp_group)
+        <span class="comment"># unflatten 回各参数...</span></code></pre>
+
+    <h3>4.3 调用时序</h3>
+    <div class="timeline">
+        <div class="timeline-item">
+            <strong>Step 1</strong>：所有 microbatch 的 forward + backward 完成
+        </div>
+        <div class="timeline-item">
+            <strong>Step 2</strong>：<code>finalize_model_grads()</code> 开始
+            <br>→ DP gradient sync（AllReduce / ReduceScatter 跨 DP ranks）
+        </div>
+        <div class="timeline-item">
+            <strong>Step 3</strong>：<code>_allreduce_non_tensor_model_parallel_grads()</code>
+            <br>→ <strong>TP group AllReduce SUM</strong> for <code>sequence_parallel</code> params
+        </div>
+        <div class="timeline-item">
+            <strong>Step 4</strong>：Embedding / Position Embedding grad sync（跨 PP stages）
+        </div>
+        <div class="timeline-item">
+            <strong>Step 5</strong>：Per-token 梯度缩放（if enabled）：<code>grad *= 1/global_num_tokens</code>
+        </div>
+        <div class="timeline-item">
+            <strong>Step 6</strong>：<code>optimizer.step()</code>
+        </div>
+    </div>
+</section>
+
+<!-- Section 5 -->
+<section class="section" id="dataflow">
+    <h2>5. SP 模式下的完整数据流</h2>
+
+    <div class="flow-diagram">
+输入: [S, B, H] (全量序列)
+    │
+    ▼  VocabParallelEmbedding + ReduceScatter
+[S/TP, B, H]  ← 进入 SP 表示
+    │
+    ╔══════════════════════════════════════════════════════════════╗
+    ║  Transformer Layer (重复 N 次)                                ║
+    ║                                                              ║
+    ║  [S/TP, B, H]                                                ║
+    ║      │                                                       ║
+    ║      ├── LayerNorm ──→ [S/TP, B, H]  (逐 token, 无通信)      ║
+    ║      │                                                       ║
+    ║      ├── ColumnParallelLinear (QKV)                           ║
+    ║      │     前向: AllGather [S/TP]→[S] → matmul → [S, B, H/TP] ║
+    ║      │     反向: ReduceScatter grad → [S/TP, B, H]           ║
+    ║      │                                                       ║
+    ║      ├── Self-Attention (在 H/TP 维度计算)                    ║
+    ║      │                                                       ║
+    ║      ├── RowParallelLinear (Out proj)                         ║
+    ║      │     前向: matmul → ReduceScatter → [S/TP, B, H]       ║
+    ║      │     反向: AllGather grad_output → [S, B, H]           ║
+    ║      │                                                       ║
+    ║      ├── Residual + LayerNorm → [S/TP, B, H]                 ║
+    ║      │                                                       ║
+    ║      ├── ColumnParallelLinear (FC1)                           ║
+    ║      │     前向: AllGather → matmul → [S, B, FFN/TP]         ║
+    ║      │                                                       ║
+    ║      ├── Activation (GeLU/SiLU)                              ║
+    ║      │                                                       ║
+    ║      ├── RowParallelLinear (FC2)                              ║
+    ║      │     前向: matmul → ReduceScatter → [S/TP, B, H]       ║
+    ║      │                                                       ║
+    ║      └── Residual → [S/TP, B, H]                             ║
+    ╚══════════════════════════════════════════════════════════════╝
+    │
+    ▼  AllGather 恢复全量序列 (for LM Head)
+[S, B, H]
+    │
+    ▼  LM Head / Loss 计算
+scalar loss
+    </div>
+
+    <div class="highlight-box">
+        <strong>SP 的通信模式本质：</strong>
+        <ul style="padding-left: 1.5rem; margin-top: 0.5rem;">
+            <li>纯 TP：RowParallelLinear 前向做 <strong>AllReduce</strong>（昂贵，且结果冗余）</li>
+            <li>TP+SP：将 AllReduce 拆为 <strong>ReduceScatter</strong>（前向）+ <strong>AllGather</strong>（在 ColumnParallel 前向时做）</li>
+            <li>通信量相同，但中间状态从 <code>[S, B, H]</code> 降为 <code>[S/TP, B, H]</code>，<strong>显存减少 TP 倍</strong></li>
+        </ul>
+    </div>
+</section>
+
+<!-- Section 6 -->
+<section class="section" id="loss">
+    <h2>6. Loss 计算方式对梯度同步的影响</h2>
+
+    <p><strong>结论：不影响 AllReduce SUM 操作本身，但影响梯度的数值缩放语义。</strong></p>
+
+    <div class="comparison">
+        <div>
+            <h4>传统模式</h4>
+            <p><code>loss = sum(loss_per_token) / local_num_tokens</code></p>
+            <p>在 backward 前归一化</p>
+            <p>每个 rank 的梯度是<strong>局部平均</strong></p>
+        </div>
+        <div>
+            <h4>Per-Token Loss 模式 <span class="badge badge-green">推荐</span></h4>
+            <p><code>loss = sum(loss_per_token)</code></p>
+            <p>不归一化，最后统一缩放</p>
+            <p>每个 rank 的梯度是<strong>局部总和</strong></p>
+        </div>
+    </div>
+
+    <h3>传统模式的潜在问题</h3>
+    <pre><code><span class="comment"># 每个 rank 计算局部平均 loss</span>
+loss = torch.sum(loss_per_token * loss_mask) / loss_mask.sum()  <span class="comment"># local mean</span>
+loss.backward()
+
+<span class="comment"># SP 参数的 AllReduce SUM 后:</span>
+<span class="comment"># grad = local_mean_rank0 + local_mean_rank1 + ... + local_mean_rank_{TP-1}</span>
+<span class="comment"># 如果各 rank 的 token 数相同 (= S/TP):</span>
+<span class="comment">#   = TP * global_mean  (多了 TP 倍！但如果 DP 端已预期除以 TP 则 OK)</span>
+<span class="comment"># 如果各 rank 的有效 token 数不同 (变长序列 / 不均匀 padding):</span>
+<span class="comment">#   ≠ global_mean  (不精确！)</span></code></pre>
+
+    <h3>Per-Token Loss 模式（精确）</h3>
+    <pre><code><span class="comment"># forward: 只返回 loss_sum, 不归一化</span>
+loss_sum = torch.sum(loss_per_token * loss_mask)
+num_tokens = loss_mask.sum()
+loss_sum.backward()
+
+<span class="comment"># finalize_model_grads 最后:</span>
+global_num_tokens = all_reduce(num_tokens, group=dp_cp_group)  <span class="comment"># 跨 DP+CP</span>
+<span class="keyword">for</span> param <span class="keyword">in</span> model.parameters():
+    param.grad *= (1.0 / global_num_tokens)  <span class="comment"># 统一缩放</span>
+
+<span class="comment"># SP 参数的处理:</span>
+<span class="comment"># 1. AllReduce SUM → 得到 ∂(global_loss_sum)/∂param (精确的全局 sum 梯度)</span>
+<span class="comment"># 2. × (1/global_num_tokens) → 得到精确的全局平均梯度 ✅</span></code></pre>
+
+    <table>
+        <thead>
+            <tr><th>Loss 模式</th><th>SP 参数 TP AllReduce 后语义</th><th>适用场景</th></tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>sum / local_tokens</code> → backward</td>
+                <td>各 local_mean 之和<br><span class="badge badge-yellow">等长序列 OK，变长不精确</span></td>
+                <td>传统 GPT 预训练</td>
+            </tr>
+            <tr>
+                <td><code>sum</code> → backward → <code>/global_tokens</code></td>
+                <td>global_sum 梯度 → /global_tokens = global_mean<br><span class="badge badge-green">精确</span></td>
+                <td>Per-token loss（推荐）</td>
+            </tr>
+        </tbody>
+    </table>
+</section>
+
+<!-- Section 7 -->
+<section class="section" id="avg-vs-sum">
+    <h2>7. <code>average_gradients_across_tp_domain</code> vs <code>sequence_parallel</code></h2>
+
+    <p>在 <code>finalize_model_grads</code> 中，<code>average_gradients_across_tp_domain</code> 的优先级比 <code>sequence_parallel</code> 高：</p>
+
+    <pre><code><span class="keyword">if</span> <span class="func">getattr</span>(param, <span class="string">"average_gradients_across_tp_domain"</span>, False):
+    grads_avg.append(grad.data)          <span class="comment"># → AllReduce AVG</span>
+<span class="keyword">elif</span> config.sequence_parallel <span class="keyword">and</span> <span class="func">getattr</span>(param, <span class="string">"sequence_parallel"</span>, False):
+    grads_sum.append(grad.data)          <span class="comment"># → AllReduce SUM</span></code></pre>
+
+    <table>
+        <thead>
+            <tr><th>属性</th><th>场景</th><th>ReduceOp</th><th>原因</th></tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>sequence_parallel</code></td>
+                <td>Megatron 原生层 (Norm, bias, Router)</td>
+                <td><span class="badge badge-blue">SUM</span></td>
+                <td>各 rank 只看到部分序列，梯度是局部的 1/TP，需要求和</td>
+            </tr>
+            <tr>
+                <td><code>average_gradients_across_tp_domain</code></td>
+                <td>HuggingFace 模型包装器等非 TP 切分的复制模块</td>
+                <td><span class="badge badge-yellow">AVG</span></td>
+                <td>各 rank 理论上梯度一致，AVG 是为了消除非确定性导致的漂移</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="highlight-box">
+        <strong>为什么优先级更高？</strong>HF 模型不参与 SP 的序列切分，它看到的是完整数据。如果一个参数属于 HF 模块（即使同时被标记了 <code>sequence_parallel</code>），其梯度是在完整序列上计算的，不需要 SUM，只需要 AVG 防漂移。两种语义互斥。
+    </div>
+
+    <div class="danger-box">
+        <strong>属性冲突 Bug 警示：</strong>如果一个参数<strong>同时</strong>被设了 <code>sequence_parallel=True</code> 和 <code>average_gradients_across_tp_domain=True</code>，
+        由于 <code>if...elif</code> 结构，<strong>AVG 会覆盖 SUM</strong>，导致本应 SUM 的参数实际走了 AVG —— 梯度数值错误。
+        <br><br>
+        <strong>典型触发场景：</strong>自定义模型中，某个参数（如 <code>adaLN.modulation</code>）在模块 <code>__init__</code> 中正确设了 <code>sequence_parallel=True</code>，
+        但后续代码又对该参数所属模块调用了批量标记函数将其覆盖为 <code>average_gradients_across_tp_domain=True</code>。
+        结果是正确的 SUM 被错误的 AVG 覆盖。
+        <br><br>
+        <strong>规则：</strong>对于同一个参数，两个属性<strong>不能同时设为 True</strong>。根据该参数的梯度语义选择其一。
+    </div>
+
+    <h3>使用场景</h3>
+    <pre><code><span class="comment"># models/huggingface/module.py — 自动对 HF 模块所有参数设置</span>
+<span class="keyword">class</span> <span class="func">HuggingFaceModule</span>(MegatronModule):
+    <span class="keyword">def</span> <span class="func">__setattr__</span>(self, name, value):
+        <span class="string">"""
+        Set average_gradients_across_tp_domain=True on all params.
+        This keeps replicated weights synchronized and prevents drift
+        due to non-determinism in HF models.
+        """</span>
+        super().__setattr__(name, value)
+        <span class="keyword">if</span> isinstance(value, torch.nn.Module):
+            <span class="keyword">for</span> param <span class="keyword">in</span> value.parameters(recurse=True):
+                <span class="func">setattr</span>(param, <span class="string">"average_gradients_across_tp_domain"</span>, True)</code></pre>
+</section>
+
+<!-- Section 8 -->
+<section class="section" id="summary">
+    <h2>8. 总结</h2>
+
+    <table>
+        <thead>
+            <tr><th>参数类型</th><th>梯度如何正确</th><th>何时同步</th></tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>ColumnParallelLinear.weight</strong><br><code>[out/TP, in]</code></td>
+                <td>前向 AllGather input → backward 用完整 input 计算 wgrad<br><span class="badge badge-green">隐式正确</span></td>
+                <td>无需额外 TP 同步</td>
+            </tr>
+            <tr>
+                <td><strong>RowParallelLinear.weight</strong><br><code>[out, in/TP]</code></td>
+                <td>前向 ReduceScatter → backward AllGather grad_output → 用完整 grad 计算 wgrad<br><span class="badge badge-green">隐式正确</span></td>
+                <td>无需额外 TP 同步</td>
+            </tr>
+            <tr>
+                <td><strong>LayerNorm weight/bias</strong><br><code>[hidden]</code> 完整复制</td>
+                <td>SP 下只看到 S/TP 个 token 的梯度<br><span class="badge badge-red">需要显式同步</span></td>
+                <td><code>finalize_model_grads</code> → TP AllReduce SUM</td>
+            </tr>
+            <tr>
+                <td><strong>RowParallelLinear.bias</strong><br><code>[out]</code> 完整复制</td>
+                <td>作用在 ReduceScatter 后的分片输出上<br><span class="badge badge-red">需要显式同步</span></td>
+                <td><code>finalize_model_grads</code> → TP AllReduce SUM</td>
+            </tr>
+            <tr>
+                <td><strong>HF 模块参数</strong><br>完整复制, 非 TP 切分</td>
+                <td>各 rank 梯度理论相同，但存在非确定性<br><span class="badge badge-yellow">防漂移同步</span></td>
+                <td><code>finalize_model_grads</code> → TP AllReduce AVG</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="highlight-box" style="margin-top: 1.5rem;">
+        <strong>设计哲学：</strong>
+        <ol style="padding-left: 1.5rem; margin-top: 0.5rem;">
+            <li><strong>能隐式解决的不显式做</strong>：Linear 的 weight 梯度通过 forward/backward 通信已隐式正确</li>
+            <li><strong>标记 + 延迟同步</strong>：需要显式同步的参数在创建时打上 <code>sequence_parallel</code> 属性，统一在 <code>finalize_model_grads</code> 批量处理</li>
+            <li><strong>DP 不侵入 TP+SP 域</strong>：DP 只负责跨 TP group 的梯度同步，TP 域内的 SP 梯度修正由 Megatron 自己的 <code>finalize_model_grads</code> 处理</li>
+            <li><strong>Per-token loss 保证语义精确</strong>：先 SUM 再统一归一化，避免变长序列下的不精确</li>
+        </ol>
+    </div>
+</section>
+
+<footer style="text-align: center; padding: 2rem 0; color: var(--gray-600); font-size: 0.85rem;">
+    <p>基于 Megatron-Core 源码分析 | 2026</p>
+</footer>
+
+</div>
+</body>
+</html>

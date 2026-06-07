@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Megatron 细粒度 Activation Offload 深度解析</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+            background: #f5f7fa;
+            color: #2c3e50;
+            line-height: 1.8;
+        }
+
+        /* ── 顶部导航 ── */
+        .nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: #1a1a2e;
+            color: #eee;
+            padding: 0 32px;
+            display: flex;
+            align-items: center;
+            height: 56px;
+            box-shadow: 0 2px 8px rgba(0,0,0,.35);
+        }
+        .nav h1 { font-size: 1.05rem; font-weight: 600; letter-spacing: .5px; }
+        .nav span { margin-left: auto; font-size: .8rem; opacity: .6; }
+
+        /* ── 布局 ── */
+        .layout { display: flex; max-width: 1400px; margin: 0 auto; }
+
+        /* ── 侧边目录 ── */
+        .sidebar {
+            width: 260px;
+            flex-shrink: 0;
+            position: sticky;
+            top: 56px;
+            height: calc(100vh - 56px);
+            overflow-y: auto;
+            background: #ffffff;
+            border-right: 1px solid #e0e6ef;
+            padding: 24px 0;
+        }
+        .sidebar-title {
+            font-size: .72rem;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: #8899aa;
+            padding: 0 20px 10px;
+        }
+        .sidebar a {
+            display: block;
+            padding: 7px 20px;
+            font-size: .82rem;
+            color: #445566;
+            text-decoration: none;
+            border-left: 3px solid transparent;
+            transition: all .15s;
+        }
+        .sidebar a:hover, .sidebar a.active {
+            background: #eef4ff;
+            border-left-color: #3b82f6;
+            color: #1d4ed8;
+        }
+        .sidebar a.l2 { padding-left: 34px; font-size: .78rem; color: #667788; }
+
+        /* ── 主内容 ── */
+        .main {
+            flex: 1;
+            padding: 48px 56px;
+            max-width: 960px;
+            min-width: 0;
+        }
+
+        /* ── 章节卡片 ── */
+        .section {
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0,0,0,.06);
+            padding: 40px 48px;
+            margin-bottom: 36px;
+            border: 1px solid #e8edf5;
+        }
+
+        /* ── 标题 ── */
+        h1.page-title {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #1a1a2e;
+            margin-bottom: 10px;
+        }
+        h2 {
+            font-size: 1.45rem;
+            font-weight: 700;
+            color: #1e3a5f;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #3b82f6;
+            margin-bottom: 24px;
+        }
+        h3 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #1e3a5f;
+            margin: 28px 0 14px;
+        }
+        h4 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #334155;
+            margin: 20px 0 10px;
+        }
+
+        p { margin-bottom: 14px; }
+
+        /* ── 代码 ── */
+        pre {
+            background: #0f172a;
+            color: #e2e8f0;
+            border-radius: 10px;
+            padding: 22px 26px;
+            overflow-x: auto;
+            font-size: .82rem;
+            line-height: 1.65;
+            margin: 18px 0;
+            border: 1px solid #1e293b;
+        }
+        code {
+            font-family: "JetBrains Mono", "Fira Code", "Consolas", monospace;
+        }
+        p code, li code, td code {
+            background: #e8f0fe;
+            color: #1d4ed8;
+            border-radius: 4px;
+            padding: 2px 7px;
+            font-size: .83em;
+        }
+
+        /* ── 表格 ── */
+        .table-wrap { overflow-x: auto; margin: 20px 0; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: .87rem;
+        }
+        thead tr { background: #1e3a5f; color: #fff; }
+        thead th {
+            padding: 11px 16px;
+            font-weight: 600;
+            text-align: left;
+        }
+        tbody tr:nth-child(even) { background: #f8faff; }
+        tbody tr:hover { background: #e8f0fe; }
+        tbody td { padding: 10px 16px; border-bottom: 1px solid #e0e6ef; }
+
+        /* ── 提示框 ── */
+        .callout {
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin: 18px 0;
+            font-size: .9rem;
+            display: flex;
+            gap: 12px;
+        }
+        .callout-icon { font-size: 1.2rem; flex-shrink: 0; line-height: 1.6; }
+        .callout.info    { background: #eff6ff; border-left: 4px solid #3b82f6; }
+        .callout.warn    { background: #fffbeb; border-left: 4px solid #f59e0b; }
+        .callout.success { background: #f0fdf4; border-left: 4px solid #22c55e; }
+        .callout.danger  { background: #fff1f2; border-left: 4px solid #f43f5e; }
+
+        /* ── 流程图 / 时序图（ASCII艺术风格） ── */
+        .diagram {
+            background: #f8faff;
+            border: 1px solid #d0dcf0;
+            border-radius: 10px;
+            padding: 20px 24px;
+            overflow-x: auto;
+            margin: 20px 0;
+            font-family: "JetBrains Mono", "Fira Code", monospace;
+            font-size: .78rem;
+            line-height: 1.9;
+            color: #1e3a5f;
+            white-space: pre;
+        }
+
+        /* ── Badge ── */
+        .badge {
+            display: inline-block;
+            padding: 2px 9px;
+            border-radius: 20px;
+            font-size: .72rem;
+            font-weight: 700;
+            letter-spacing: .5px;
+        }
+        .badge-pre  { background: #dcfce7; color: #166534; }
+        .badge-post { background: #fce7f3; color: #9d174d; }
+        .badge-yes  { background: #d1fae5; color: #065f46; }
+        .badge-no   { background: #fee2e2; color: #991b1b; }
+        .badge-warn { background: #fef3c7; color: #92400e; }
+
+        /* ── 序号列表 ── */
+        ol, ul { padding-left: 24px; margin-bottom: 14px; }
+        li { margin-bottom: 8px; }
+
+        /* ── 分割线 ── */
+        hr { border: none; border-top: 1px solid #e0e6ef; margin: 28px 0; }
+
+        /* ── 概念图（flex卡片） ── */
+        .concept-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin: 20px 0;
+        }
+        .concept-card {
+            background: #f0f7ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 10px;
+            padding: 18px;
+        }
+        .concept-card .label {
+            font-size: .72rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: #3b82f6;
+            margin-bottom: 6px;
+        }
+        .concept-card .value {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #1e3a5f;
+            margin-bottom: 6px;
+        }
+        .concept-card p { font-size: .82rem; color: #445566; margin: 0; }
+
+        /* ── 时序步骤 ── */
+        .steps { margin: 20px 0; }
+        .step {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 14px;
+            align-items: flex-start;
+        }
+        .step-num {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #3b82f6;
+            color: #fff;
+            font-weight: 700;
+            font-size: .82rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            margin-top: 3px;
+        }
+        .step-body { flex: 1; font-size: .88rem; }
+        .step-body strong { color: #1e3a5f; }
+
+        /* ── 错误修正框 ── */
+        .correction {
+            background: #fff7ed;
+            border: 1px solid #fed7aa;
+            border-radius: 10px;
+            padding: 18px 22px;
+            margin: 18px 0;
+        }
+        .correction-title {
+            font-weight: 700;
+            color: #c2410c;
+            margin-bottom: 10px;
+            font-size: .9rem;
+        }
+
+        /* ── 响应式 ── */
+        @media (max-width: 900px) {
+            .sidebar { display: none; }
+            .main { padding: 28px 20px; }
+            .section { padding: 24px 20px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- 导航栏 -->
+<nav class="nav">
+    <h1>Megatron 细粒度 Activation Offload 深度解析</h1>
+    <span>源自 Schilings/Knowledge</span>
+</nav>
+
+<div class="layout">
+
+    <!-- 侧边目录 -->
+    <aside class="sidebar">
+        <div class="sidebar-title">目录</div>
+        <a href="#overview">概述与背景</a>
+        <a href="#concepts">核心概念层次</a>
+        <a href="#chunk-handler" class="l2">ChunkOffloadHandler</a>
+        <a href="#pipeline-manager" class="l2">PipelineOffloadManager</a>
+        <a href="#warmup">Warmup 录制机制</a>
+        <a href="#forward">前向传播流程</a>
+        <a href="#autograd-hook" class="l2">Autograd Hook 注册</a>
+        <a href="#chunk-locate" class="l2">Chunk 定位：pop_forward</a>
+        <a href="#offload-flow" class="l2">Offload 流程</a>
+        <a href="#backward">反向传播流程</a>
+        <a href="#groupstart-bwd" class="l2">GroupStart.backward（Post BWD）</a>
+        <a href="#groupcommit-bwd" class="l2">GroupCommit.backward（Pre BWD）</a>
+        <a href="#tensor-pop" class="l2">tensor_pop 与状态机</a>
+        <a href="#prefetch">Prefetch Pipeline</a>
+        <a href="#coldstart" class="l2">冷启动问题</a>
+        <a href="#chunk-bwd" class="l2">反向 Chunk 定位</a>
+        <a href="#comparison">前向 vs 反向对比</a>
+        <a href="#corrections">已知理解纠正</a>
+        <a href="#summary">总结</a>
+    </aside>
+
+    <!-- 主内容 -->
+    <main class="main">
+
+        <!-- ① 概述 -->
+        <section class="section" id="overview">
+            <h1 class="page-title">Megatron 细粒度 Activation Offload</h1>
+            <p style="color:#667788;font-size:.9rem;margin-bottom:24px">本文对 Megatron-LM 中 <code>fine_grained_activation_offloading</code> 模块进行逐层深度剖析，涵盖数据结构设计、前向/反向时序、Prefetch Pipeline、Warmup 录制机制及常见理解误区纠正。</p>
+
+            <h2>背景：为什么需要 Activation Offload？</h2>
+            <p>在大规模模型训练中，<strong>Pipeline Parallelism（流水线并行）</strong> 将模型按层切分到不同 GPU。前向传播时，每一层都需要保存激活值（activation）供反向计算梯度使用。这些激活值会占用大量 GPU 显存。</p>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="label">核心问题</div>
+                    <div class="value">显存瓶颈</div>
+                    <p>大 batch / 深模型时，activation 占用超过显存上限</p>
+                </div>
+                <div class="concept-card">
+                    <div class="label">解决思路</div>
+                    <div class="value">GPU→CPU Offload</div>
+                    <p>前向时把 activation 搬到 CPU，反向时再搬回 GPU</p>
+                </div>
+                <div class="concept-card">
+                    <div class="label">关键挑战</div>
+                    <div class="value">隐藏传输延迟</div>
+                    <p>H2D / D2H 传输不能阻塞计算，需要异步重叠</p>
+                </div>
+                <div class="concept-card">
+                    <div class="label">本模块特色</div>
+                    <div class="value">细粒度控制</div>
+                    <p>以子模块（attn_norm、qkv 等）为粒度，可独立开关</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ② 核心概念 -->
+        <section class="section" id="concepts">
+            <h2>核心概念层次结构</h2>
+            <p>整个 offload 系统有三个层次，从粗到细：</p>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr><th>层次</th><th>类</th><th>对应粒度</th><th>数量（示例）</th><th>说明</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>1. Chunk</strong></td>
+                            <td><code>ChunkOffloadHandler</code></td>
+                            <td>一个 <strong>microbatch</strong></td>
+                            <td>N microbatch → N 个 Chunk</td>
+                            <td>包含该 microbatch 经过所有 layer 产生的全部激活</td>
+                        </tr>
+                        <tr>
+                            <td><strong>2. Group</strong></td>
+                            <td><code>OffloadTensorGroup</code></td>
+                            <td>一个 layer 的一个<strong>子模块</strong></td>
+                            <td>每个 Chunk 有若干 Group</td>
+                            <td>如 <code>attn_norm</code>、<code>qkv_linear</code>、<code>mlp</code> 各是一个 Group</td>
+                        </tr>
+                        <tr>
+                            <td><strong>3. Tensor</strong></td>
+                            <td>PyTorch Tensor</td>
+                            <td>单个<strong>激活张量</strong></td>
+                            <td>每个 Group 有若干 Tensor</td>
+                            <td>通过 autograd hook 自动捕获 save_for_backward 的张量</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 id="chunk-handler">ChunkOffloadHandler</h3>
+            <p>一个 microbatch 对应一个 <code>ChunkOffloadHandler</code>。它负责：</p>
+            <ol>
+                <li>将前向传播保存的激活张量从 GPU <strong>异步拷贝到 CPU</strong>（offload，释放显存）</li>
+                <li>在反向传播需要时，将它们从 CPU <strong>异步拷贝回 GPU</strong>（reload）</li>
+                <li>以 Group 为粒度管理，每个 Group 对应一个子模块的激活集合</li>
+            </ol>
+            <p><strong>创建时机</strong>：在 <code>PipelineOffloadManager.init_model_chunk_offload_handler()</code> 中创建，由 <code>GPTModel.forward()</code> 在每个 microbatch 开始时（warmup 阶段）调用。</p>
+
+            <div class="diagram">
+chunk0 (microbatch 0):
+  ├── group[0]: "attn_norm"  (layer 0 的 LayerNorm 激活)
+  ├── group[1]: "qkv_linear" (layer 0 的 QKV 线性层激活)
+  ├── group[2]: "attn"       (layer 0 的 Attention 激活)
+  ├── group[3]: "mlp_norm"   (layer 0 的 MLP 前 Norm 激活)
+  ├── group[4]: "mlp"        (layer 0 的 MLP 激活)
+  ├── group[5]: "attn_norm"  (layer 1 的 ...)
+  └── ...
+
+chunk1 (microbatch 1):  ← 同样的结构
+chunk2 (microbatch 2):  ← 同样的结构</div>
+
+            <h3 id="pipeline-manager">PipelineOffloadManager</h3>
+            <p>全局单例，负责协调所有 Chunk 的 offload/reload 调度，维护前向和反向的 Chunk 队列。</p>
+        </section>
+
+        <!-- ③ Warmup -->
+        <section class="section" id="warmup">
+            <h2>Warmup 录制机制：录制一次，重放多次</h2>
+
+            <div class="callout info">
+                <div class="callout-icon">💡</div>
+                <div>这是整个系统最核心的优化策略：类比 <strong>CUDA Graph</strong>——第一个 iteration 「录制」所有 Chunk/Group 结构，后续 iteration 直接「重放」，避免重复分配对象。</div>
+            </div>
+
+            <h3>为什么可以这样做？</h3>
+            <p>Pipeline Parallelism 的训练调度是<strong>确定性的</strong>：每个 iteration 的 microbatch 数量、前向/反向顺序、每层的子模块结构完全相同。因此第一次录制的结构完全可复用。</p>
+
+            <h3>Warmup 阶段（第一个 iteration）：录制</h3>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-num">1</div>
+                    <div class="step-body"><strong>创建 Chunk 对象</strong>：每个 microbatch 开始前调用 <code>init_model_chunk_offload_handler()</code>，创建 <code>ChunkOffloadHandler</code>，追加到 <code>_cached_chunks_forward</code></div>
+                </div>
+                <div class="step">
+                    <div class="step-num">2</div>
+                    <div class="step-body"><strong>收集 Group 结构</strong>：<code>on_group_start_forward()</code> 在 warmup 时创建 <code>OffloadTensorGroup</code>，记录每层每个子模块的 name</div>
+                </div>
+                <div class="step">
+                    <div class="step-num">3</div>
+                    <div class="step-body"><strong>分析 Offload 策略</strong>：<code>post_warmup_callback()</code> 在 warmup 结束后分析哪些 Group 不需要 offload（如末尾几个 Group 用 <code>_offload_margin</code> 跳过），并为 CPU tensor pool 分配合适大小的内存</div>
+                </div>
+                <div class="step">
+                    <div class="step-num">4</div>
+                    <div class="step-body"><strong>构建反向队列</strong>：通过 <code>flush()</code> + <code>reversed()</code> 将 Chunk 按反向执行顺序（LIFO）存入 <code>_cached_chunks_backward</code></div>
+                </div>
+            </div>
+
+            <h3>非 Warmup 阶段（后续 iteration）：重放</h3>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-num">1</div>
+                    <div class="step-body"><strong><code>reset()</code> 归零</strong>：<code>_cur_forward_chunk = None</code>，指针 <code>_cached_chunks_index_forward = 0</code>，每个 Chunk 调用 <code>chunk.reset()</code> 重置内部计数器（但不销毁对象）</div>
+                </div>
+                <div class="step">
+                    <div class="step-num">2</div>
+                    <div class="step-body"><strong><code>init_model_chunk_offload_handler()</code> 直接返回</strong>：不再创建新对象</div>
+                </div>
+                <div class="step">
+                    <div class="step-num">3</div>
+                    <div class="step-body"><strong>通过 <code>pop_forward_chunk(name)</code> 按需取出缓存 Chunk</strong>：从 <code>_cached_chunks_forward[index]</code> 中按序复用</div>
+                </div>
+            </div>
+
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>优化原因</th><th>说明</th></tr></thead>
+                    <tbody>
+                        <tr><td>避免重复分配</td><td><code>OffloadTensorGroup</code>、CUDA Event 等无需每次重新创建</td></tr>
+                        <tr><td>CPU tensor pool 复用</td><td>warmup 后 pool 中已有正确大小的 CPU tensor，后续零分配开销</td></tr>
+                        <tr><td>Offload 策略只需分析一次</td><td><code>post_warmup_callback</code> 决策 <code>_offload_margin</code> 一次性完成</td></tr>
+                        <tr><td>确定性保证</td><td>复用同一组 Chunk 对象，前向/反向匹配关系不会出错</td></tr>
+                        <tr><td>减少 GC 压力</td><td>减少 Python 对象的创建与销毁</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ④ 前向传播 -->
+        <section class="section" id="forward">
+            <h2>前向传播流程</h2>
+
+            <h3 id="autograd-hook">Autograd Hook 注册：__enter__ / __exit__</h3>
+            <p>这是「细粒度（fine-grained）」的核心机制。每个子模块计算被包裹在一个 <code>with off_interface(..., name) as hidden_states:</code> 语句中：</p>
+
+            <pre><code># transformer_layer.py 中的示例
+with off_interface(self.offload_attn_norm, hidden_states, "attn_norm") as hidden_states:
+    input_layernorm_output = self.input_layernorm(hidden_states)
+
+with off_interface(self.offload_qkv_linear, hidden_states, "qkv_linear") as hidden_states:
+    qkv_output = self.get_query_key_value_tensors(hidden_states, ...)</code></pre>
+
+            <p><code>__enter__</code> 注册 PyTorch autograd 的 saved tensor hook：</p>
+            <pre><code>def __enter__(self):
+    cpu_offload.CPUOffloadEnabled = True
+    torch._C._autograd._push_saved_tensors_default_hooks(
+        self.on_save_for_backward,   # 前向：tensor → tensor_tag
+        self.on_get_saved_tensor     # 反向：tensor_tag → tensor
+    )
+
+def __exit__(self, *args):
+    cpu_offload.CPUOffloadEnabled = False
+    torch._C._autograd._pop_saved_tensors_default_hooks()</code></pre>
+
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Hook</th><th>调用时机</th><th>作用</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>on_save_for_backward(tensor)</code></td><td>任何算子调用 <code>ctx.save_for_backward(tensor)</code> 时</td><td>将 tensor 推入当前 Group（<code>tensor_push</code>），返回 <code>tensor_tag</code></td></tr>
+                        <tr><td><code>on_get_saved_tensor(tag)</code></td><td>反向传播时任何算子访问 <code>ctx.saved_tensors</code> 时</td><td>根据 tag 从 Group 取回 tensor（<code>tensor_pop</code>，可能需要 reload）</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="callout info">
+                <div class="callout-icon">📌</div>
+                <div>每个 <code>with</code> 块只覆盖<strong>一个具体的子计算</strong>（一次 linear 或一次 norm），这就是「细粒度」的含义：不同子模块的 tensor 分到不同 Group，可独立决定是否 offload。</div>
+            </div>
+
+            <h3 id="chunk-locate">Chunk 定位：pop_forward_chunk(name)</h3>
+            <p>每次 <code>with</code> 块开始（<code>group_start</code>）时，需要确定当前 layer 属于哪个 Chunk：</p>
+
+            <pre><code>def pop_forward_chunk(self, name=None):
+    if not self.do_offload:
+        return self._cur_forward_chunk
+
+    while not self._is_warmup and (
+        self._cur_forward_chunk is None
+        or self._cur_forward_chunk.finish_all_groups(name)
+    ):
+        if self._cached_chunks_index_forward >= len(self._cached_chunks_forward):
+            self._cur_forward_chunk = None
+            break
+        self._cur_forward_chunk = \
+            self._cached_chunks_forward[self._cached_chunks_index_forward]
+        self._cached_chunks_index_forward += 1
+
+    return self._cur_forward_chunk</code></pre>
+
+            <p><code>finish_all_groups(name)</code> 的语义：从当前 <code>_offloaded_group_index</code> 位置往后，找不到名为 <code>name</code> 的 Group 了，即当前 Chunk（microbatch）的同名子模块全部处理完毕，需要切换到下一个 Chunk（下一个 microbatch）。</p>
+
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>while 循环条件</th><th>含义</th><th>动作</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>_cur_forward_chunk is None</code></td><td>iteration 开始、还没取第一个 Chunk</td><td>从列表取第一个</td></tr>
+                        <tr><td><code>finish_all_groups(name) == True</code></td><td>当前 Chunk 的同名 Group 已全部处理完</td><td>切换到下一个 Chunk</td></tr>
+                        <tr><td><code>finish_all_groups(name) == False</code></td><td>当前 Chunk 还有同名 Group 待处理</td><td>退出循环，返回当前 Chunk</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 id="offload-flow">Offload 流程：bulk_offload_group</h3>
+            <p>在 <code>on_group_commit_forward()</code> 时，触发整个 Group 的批量异步 offload：</p>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-num">1</div>
+                    <div class="step-body">让 <strong>D2H stream</strong> 等待当前计算流完成（<code>d2h_stream.wait_event(compute_event)</code>）</div>
+                </div>
+                <div class="step">
+                    <div class="step-num">2</div>
+                    <div class="step-body">在 D2H stream 上，遍历 Group 内所有 tensor，调用 <code>offload(tensor)</code>：将 GPU tensor 拷贝到 <strong>pinned CPU memory</strong>，将 <code>_tensors[tag]</code> 替换为 <code>(device, cpu_backup, use_cpu_pool)</code> 元组</div>
+                </div>
+                <div class="step">
+                    <div class="step-num">3</div>
+                    <div class="step-body">记录 <strong>offload_event</strong>（用于后续 reload 时确认数据已到 CPU）</div>
+                </div>
+                <div class="step">
+                    <div class="step-num">4</div>
+                    <div class="step-body">如果设置了显存立即释放（<code>forced_released_tensors</code>），立刻释放 GPU 端引用</div>
+                </div>
+            </div>
+
+            <div class="callout warn">
+                <div class="callout-icon">⚠️</div>
+                <div>如果某个 tensor 小于 <code>min_offloaded_tensor_size</code>，<code>tensor_need_offloading_checker</code> 返回 False，该 tensor <strong>不会被 offload</strong>，始终保留在 GPU 上。</div>
+            </div>
+        </section>
+
+        <!-- ⑤ 反向传播 -->
+        <section class="section" id="backward">
+            <h2>反向传播流程</h2>
+
+            <div class="callout warn">
+                <div class="callout-icon">🔑</div>
+                <div><strong>最重要的理解要点</strong>：在 autograd 反向图中，前向时 <code>GroupStart → GroupCommit</code> 的顺序在反向时<strong>完全反转</strong>为 <code>GroupCommit.backward → GroupStart.backward</code>。这导致两个方法的「pre/post backward」角色与名字直觉<strong>完全相反</strong>。</div>
+            </div>
+
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>节点</th><th>Forward 时角色</th><th>Backward 时角色</th><th>实际调用</th></tr></thead>
+                    <tbody>
+                        <tr>
+                            <td><code>GroupCommit.backward</code></td>
+                            <td>层计算结束（post forward）</td>
+                            <td><span class="badge badge-pre">Pre Backward</span> 层反向开始之前</td>
+                            <td>调用 <code>on_group_commit_backward()</code>，等待 reload 完成</td>
+                        </tr>
+                        <tr>
+                            <td><code>GroupStart.backward</code></td>
+                            <td>层计算开始（pre forward）</td>
+                            <td><span class="badge badge-post">Post Backward</span> 层反向结束之后</td>
+                            <td>调用 <code>on_group_start_backward()</code>，发起下一层的 prefetch reload</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 id="groupstart-bwd">GroupStart.backward（Post Backward）：为下一层 Prefetch</h3>
+            <pre><code>def backward(ctx, grad_output):
+    cpu_offload_handler = ctx.cpu_offload_handler
+    cpu_offload_handler.on_group_start_backward()  # ← 触发 bulk_reload
+    return grad_output, None, None, None</code></pre>
+            <p>此时<strong>当前层的反向计算已经完成</strong>，它在 H2D stream 上异步发起<strong>下一层（前一层）</strong>的 tensor reload，让传输与后续计算重叠（overlap）。</p>
+
+            <h3 id="groupcommit-bwd">GroupCommit.backward（Pre Backward）：等待 Reload 完成</h3>
+            <p>在当前层反向计算<strong>开始之前</strong>，等待该层 tensor 的 reload event，确保 tensor 已在 GPU 上可用。</p>
+            <p>同时检查 <code>cur_backward_chunk</code> 是否是自己，不是则调用 <code>pop_backward_chunk(name)</code> 切换。</p>
+
+            <h3>完整反向时序（以 Layer N 为例）</h3>
+            <div class="diagram">反向计算图的执行顺序（以两层为例）：
+
+GroupCommit(LayerN).backward   ← [Pre BWD]  等待 LayerN 的 reload event 完成
+        ↓
+  LayerN 的反向计算              ← 使用已 reload 好的 tensor（tensor_pop 被触发）
+        ↓
+GroupStart(LayerN).backward    ← [Post BWD] 在 H2D stream 上异步发起 LayerN-1 的 reload
+        ↓
+GroupCommit(LayerN-1).backward ← [Pre BWD]  等待 LayerN-1 的 reload event 完成
+        ↓
+  LayerN-1 的反向计算            ← 使用已 reload 好的 tensor
+        ↓
+GroupStart(LayerN-1).backward  ← [Post BWD] 异步发起 LayerN-2 的 reload
+        ↓
+        ...</div>
+
+            <h3 id="tensor-pop">tensor_pop 与 Tensor 状态机</h3>
+            <p>反向计算中每次访问 <code>ctx.saved_tensors</code> 时，被 hook 拦截，调用 <code>tensor_pop</code>：</p>
+
+            <pre><code>def tensor_pop(self, tensor_tag):
+    tensor = self.offload_groups[group_id - 1].pop_tensor(tensor_tag)
+    if isinstance(tensor, tuple):   # tuple = 还没 reload 回来
+        tensor = self.reload(tensor)  # 同步 reload（fallback 路径）
+    return tensor</code></pre>
+
+            <p>一个 tensor 经历的状态变化：</p>
+            <div class="diagram">① tensor_push：   _tensors[tag] = tensor                       [原始 GPU Tensor]
+                                       ↓
+② bulk_offload：  tensor 大 → _tensors[tag] = (device, cpu, pool) [tuple 状态，已到 CPU]
+                  tensor 小 → _tensors[tag] = tensor               [仍是 GPU Tensor，未 offload]
+                                       ↓
+③ bulk_reload：   tuple → reload → _tensors[tag] = tensor          [正常 prefetch，变回 GPU Tensor]
+                  未被调用 → _tensors[tag] 仍是 tuple               [边界情况]
+                                       ↓
+④ tensor_pop：    isinstance(tensor, tuple)?
+                  → False：直接返回（正常路径）
+                  → True： 同步 reload 后返回（fallback 路径）</div>
+        </section>
+
+        <!-- ⑥ Prefetch Pipeline -->
+        <section class="section" id="prefetch">
+            <h2>Prefetch Pipeline：计算与传输重叠</h2>
+            <p>整个反向传播的设计核心是 <strong>Double Buffering / Pipeline Prefetch</strong>：当前层在计算梯度时，下一层的 tensor 正在被异步搬回 GPU，两者在不同 CUDA stream 上并行进行。</p>
+
+            <h3 id="coldstart">冷启动问题与解决方案</h3>
+            <div class="callout danger">
+                <div class="callout-icon">❄️</div>
+                <div>Prefetch 链条的起点没有「上一层」来触发它，因此第一个开始 backward 的 Chunk 的最后一层（最先 backward 的 Group）无法被提前 prefetch。</div>
+            </div>
+
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>场景</th><th>第一次 Reload 如何发生</th><th>是否阻塞</th></tr></thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>第一个 Chunk 的最后一层</strong></td>
+                            <td><code>tensor_pop</code> 中 tuple fallback：同步阻塞 reload</td>
+                            <td><span class="badge badge-warn">⚠️ 阻塞</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>后续 Chunk 的最后一层</strong></td>
+                            <td>前一个 Chunk backward 结束时调用 <code>pre_reload_last_layer</code> 提前 prefetch</td>
+                            <td><span class="badge badge-yes">✅ 无阻塞</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>同一 Chunk 内的非最后一层</strong></td>
+                            <td>上一层 <code>GroupStart.backward</code>（Post BWD）触发 <code>bulk_reload</code> prefetch</td>
+                            <td><span class="badge badge-yes">✅ 无阻塞</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3><code>pre_reload_last_layer</code> 机制</h3>
+            <p>在 <code>bulk_reload()</code> 中，当前 Chunk 自己的 Group 都 reload 完了之后，会「顺手」帮下一个 Chunk 的最后一层提前 reload：</p>
+            <pre><code>def bulk_reload(self):
+    if len(self._groups_to_reload) > 0:
+        self.bulk_reload_group()          # 正常 prefetch 本 Chunk 下一层
+    else:
+        # 自己的活干完了，帮下一个 Chunk 的最后一层热身
+        next_chunk = PipelineOffloadManager.get_instance().front_backward_chunk()
+        if (next_chunk is not None
+            and next_chunk._offloaded_group_index == next_chunk._max_group_size):
+            next_chunk.pre_reload_last_layer()</code></pre>
+
+            <div class="diagram">Chunk0 backward 时序示意：
+
+Chunk0-LayerN:
+  [无 prefetch，tensor_pop 同步 reload 阻塞]
+  GroupStart(LayerN).bwd → bulk_reload → 为 LayerN-1 prefetch ──────────────┐
+                                                                              │ H2D stream 传输中...
+Chunk0-LayerN-1:                                                              │
+  GroupCommit(LayerN-1).bwd → wait_reload_event → ✅ tensor 已就绪 ◄─────────┘
+  [LayerN-1 反向计算，无阻塞]
+  GroupStart(LayerN-1).bwd → bulk_reload → 为 LayerN-2 prefetch
+
+  ...
+
+Chunk0-Layer1:
+  GroupStart(Layer1).bwd → _groups_to_reload 为空
+                         → pre_reload_last_layer(Chunk1) ────────────────────┐
+                                                                              │ H2D stream 传输中...
+Chunk1-LayerN:                                                                │
+  GroupCommit(LayerN).bwd → wait_reload_event → ✅ tensor 已就绪 ◄───────────┘
+  [无阻塞！]</div>
+
+            <h3 id="chunk-bwd">反向 Chunk 定位</h3>
+            <p>反向传播中，每次 <code>GroupCommit.backward</code>（pre backward）开始时，需要确认当前正在处理的是哪个 Chunk：</p>
+
+            <pre><code>def pop_backward_chunk(self, name=None):
+    self._cur_backward_chunk = None
+    for idx, handler in enumerate(
+        self._cached_chunks_backward[self._cached_chunks_index_backward:]
+    ):
+        self._cached_chunks_index_backward += 1
+        if not handler.is_empty_chunk(name):
+            self._cur_backward_chunk = handler  # 找到第一个包含该 name 的 Chunk
+            break
+    assert self._cur_backward_chunk is not None</code></pre>
+
+            <p><code>front_backward_chunk(name)</code> 是只读版本（peek），不推进指针，用于 prefetch 时查看下一个 Chunk。</p>
+        </section>
+
+        <!-- ⑦ 前向 vs 反向对比 -->
+        <section class="section" id="comparison">
+            <h2>前向 vs 反向：完整对比</h2>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr><th>维度</th><th>前向 Chunk</th><th>反向 Chunk</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><strong>队列</strong></td><td><code>_cached_chunks_forward</code>（正序）</td><td><code>_cached_chunks_backward</code>（逆序，LIFO）</td></tr>
+                        <tr><td><strong>指针</strong></td><td><code>_cached_chunks_index_forward</code></td><td><code>_cached_chunks_index_backward</code></td></tr>
+                        <tr><td><strong>当前 Chunk</strong></td><td><code>_cur_forward_chunk</code></td><td><code>_cur_backward_chunk</code></td></tr>
+                        <tr><td><strong>切换触发</strong></td><td><code>finish_all_groups(name)</code> 返回 True</td><td><code>on_group_commit_backward</code> 中 <code>self != cur_chunk</code></td></tr>
+                        <tr><td><strong>切换方法</strong></td><td><code>pop_forward_chunk(name)</code> 内部 while</td><td><code>pop_backward_chunk(name)</code> 显式调用</td></tr>
+                        <tr><td><strong>只读 peek</strong></td><td><code>cur_forward_chunk()</code></td><td><code>front_backward_chunk(name)</code></td></tr>
+                        <tr><td><strong>切换判断依据</strong></td><td>当前 Chunk 的同名 Group 全部消费完</td><td>找到第一个包含目标 name 的非空 Chunk</td></tr>
+                        <tr><td><strong>调用来源</strong></td><td><code>fine_grained_offloading_group_start()</code></td><td><code>ChunkOffloadHandler.on_group_commit_backward()</code></td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>成对函数对照表</h3>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr><th>前向函数</th><th>反向函数</th><th>反向时机</th><th>作用</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>on_group_commit_forward</code></td>
+                            <td><code>on_group_commit_backward</code></td>
+                            <td><span class="badge badge-pre">Pre BWD</span></td>
+                            <td>前向：触发异步 offload；反向：等待 reload 完成</td>
+                        </tr>
+                        <tr>
+                            <td><code>on_group_start_forward</code></td>
+                            <td><code>on_group_start_backward</code></td>
+                            <td><span class="badge badge-post">Post BWD</span></td>
+                            <td>前向：初始化 Group；反向：触发下一层 prefetch reload</td>
+                        </tr>
+                        <tr>
+                            <td><code>tensor_push(tensor)</code></td>
+                            <td><code>tensor_pop(tag)</code></td>
+                            <td>计算中</td>
+                            <td>前向：存入 Group；反向：取出（含 fallback reload）</td>
+                        </tr>
+                        <tr>
+                            <td><code>bulk_offload_group()</code></td>
+                            <td><code>bulk_reload_group()</code></td>
+                            <td>批量操作</td>
+                            <td>D2H / H2D 异步批量传输</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ⑧ 纠错 -->
+        <section class="section" id="corrections">
+            <h2>已知理解误区纠正</h2>
+            <p>以下是阅读源码时容易产生的理解错误，已在原文中标出并纠正：</p>
+
+            <div class="correction">
+                <div class="correction-title">❌ 误区 1：时序图中 on_group_start_backward 放在 backward 最前面</div>
+                <p><strong>错误描述</strong>：认为 <code>on_group_start_backward</code> 是「pre backward」，在当前层 backward 开始前触发 bulk_reload。</p>
+                <p><strong>正确理解</strong>：<code>on_group_start_backward</code> 是 <code>GroupStartFunction.backward</code>，而 Forward 时 GroupStart 在 GroupCommit <strong>之前</strong>，所以 Backward 时顺序反转，GroupStart.backward 在 GroupCommit.backward <strong>之后</strong>执行。它是 <strong>Post Backward</strong>，在当前层反向结束后为下一层 prefetch。</p>
+            </div>
+
+            <div class="correction">
+                <div class="correction-title">❌ 误区 2：认为 on_group_commit_backward 是「post backward」</div>
+                <p><strong>错误描述</strong>：因为 commit = 结束，以为它在 backward 结束时调用。</p>
+                <p><strong>正确理解</strong>：<code>on_group_commit_backward</code> 是 <code>GroupCommitFunction.backward</code>，由于 backward 顺序反转，它是 <strong>Pre Backward</strong>（在当前层反向计算之前），负责等待 reload 完成，确保当前层的 tensor 可用。</p>
+            </div>
+
+            <div class="correction">
+                <div class="correction-title">❌ 误区 3：认为 on_group_start_backward 的 bulk_reload 是为当前层服务的</div>
+                <p><strong>错误描述</strong>：以为 GroupStart.backward 发起 reload 是为当前 group 补货。</p>
+                <p><strong>正确理解</strong>：GroupStart.backward 是 Post Backward，此时当前层的反向已完成，它触发的 bulk_reload 是为<strong>下一个（前一个 layer）</strong>的 Group 提前 prefetch，实现 pipeline 重叠。</p>
+            </div>
+
+            <div class="correction">
+                <div class="correction-title">❌ 误区 4：认为 finish_all_groups 返回 True 时循环停止</div>
+                <p><strong>错误描述</strong>：误以为 True = 找到了目标，循环结束。</p>
+                <p><strong>正确理解</strong>：True = 「这个 Chunk 里所有同名 Group 都处理完了」= 活干完了，需要<strong>继续循环</strong>找下一个 Chunk。False = 「还有同名 Group 没处理」= 停下来用这个 Chunk。</p>
+            </div>
+        </section>
+
+        <!-- ⑨ 总结 -->
+        <section class="section" id="summary">
+            <h2>总结：系统全貌</h2>
+
+            <div class="diagram">完整系统架构一览
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│  PipelineOffloadManager（全局单例）                                       │
+│                                                                         │
+│  Warmup 阶段：                                                            │
+│    _cached_chunks_forward  = [chunk0, chunk1, chunk2, chunk3]  (正序)   │
+│    _cached_chunks_backward = [chunk3, chunk2, chunk1, chunk0]  (逆序)   │
+│                                                                         │
+│  非 Warmup 阶段：                                                         │
+│    reset() → 指针归零 → 按序复用缓存的 Chunk 对象                           │
+└─────────────────────────────────────────────────────────────────────────┘
+
+前向传播流程（以一层子模块为例）：
+
+  GPTModel.forward(microbatch_i)
+    │
+    ├─ preprocess: init_model_chunk_offload_handler()  ← warmup 时创建 Chunk
+    │
+    ├─ with off_interface(..., "attn_norm"):
+    │    __enter__: pop_forward_chunk("attn_norm") → 定位 Chunk
+    │              on_group_start_forward("attn_norm")  → 初始化 Group
+    │              注册 autograd hook
+    │    [LayerNorm 计算，hook 自动捕获 save_for_backward → tensor_push]
+    │    __exit__:  注销 hook
+    │
+    ├─ group_commit("attn_norm")
+    │    on_group_commit_forward() → bulk_offload_group()
+    │      D2H stream: GPU tensor → CPU pinned memory（异步）
+    │      _tensors[tag] = (device, cpu_backup, use_pool)  [tuple 状态]
+    │
+    └─ （其他子模块重复以上流程...）
+
+反向传播流程（以一层子模块为例）：
+
+  GroupCommit.backward           ← [Pre BWD]
+    on_group_commit_backward():
+      检查 cur_backward_chunk == self，否则 pop_backward_chunk()
+      wait_reload_event()         ← 确保 tensor 已在 GPU
+
+  [子模块反向计算]
+    ctx.saved_tensors 访问 → hook 触发 tensor_pop()
+      正常路径：tensor 已是 GPU Tensor，直接返回
+      fallback：tensor 仍是 tuple → 同步 reload（冷启动）
+
+  GroupStart.backward            ← [Post BWD]
+    on_group_start_backward():
+      bulk_reload_group()         ← 在 H2D stream 上异步 prefetch 下一层</div>
+
+            <div class="callout success">
+                <div class="callout-icon">🎯</div>
+                <div>
+                    <strong>核心设计哲学</strong>：
+                    <ul style="margin-top:8px">
+                        <li><strong>「录制一次，重放多次」</strong>：Warmup 阶段构建结构，后续复用，类比 CUDA Graph</li>
+                        <li><strong>「细粒度钩子」</strong>：以子模块为粒度注册 autograd hook，精确控制哪些 tensor 被拦截</li>
+                        <li><strong>「流水线 Prefetch」</strong>：利用独立 CUDA stream，让 H2D 传输与 GPU 反向计算并行</li>
+                        <li><strong>「前向 Post BWD 发起，后向 Pre BWD 等待」</strong>：GroupStart.backward（post）prefetch，GroupCommit.backward（pre）wait</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+    </main>
+</div>
+
+<script>
+    // 侧边栏高亮当前章节
+    const sections = document.querySelectorAll('section[id]');
+    const links = document.querySelectorAll('.sidebar a');
+    const observer = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                links.forEach(l => l.classList.remove('active'));
+                const link = document.querySelector(`.sidebar a[href="#${entry.target.id}"]`);
+                if (link) link.classList.add('active');
+            }
+        });
+    }, { rootMargin: '-20% 0px -70% 0px' });
+    sections.forEach(s => observer.observe(s));
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>vLLM Sequence Parallelism 深度笔记</title>
+<style>
+  :root {
+    --primary: #2563eb;
+    --primary-dark: #1e40af;
+    --accent: #0ea5e9;
+    --bg: #f8fafc;
+    --bg-card: #ffffff;
+    --text: #1e293b;
+    --text-muted: #64748b;
+    --border: #e2e8f0;
+    --code-bg: #1e293b;
+    --code-text: #e2e8f0;
+    --highlight: #fef3c7;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    line-height: 1.75;
+    color: var(--text);
+    background: var(--bg);
+    margin: 0;
+    padding: 0;
+  }
+
+  .layout {
+    display: flex;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  /* 侧边栏目录 */
+  .sidebar {
+    width: 280px;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 30px 20px;
+    background: var(--bg-card);
+    border-right: 1px solid var(--border);
+  }
+
+  .sidebar h3 {
+    font-size: 14px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    letter-spacing: 1px;
+    margin: 20px 0 10px;
+  }
+
+  .sidebar ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .sidebar li {
+    margin: 4px 0;
+  }
+
+  .sidebar a {
+    display: block;
+    padding: 6px 12px;
+    color: var(--text);
+    text-decoration: none;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: all 0.2s;
+    border-left: 3px solid transparent;
+  }
+
+  .sidebar a:hover {
+    background: #eff6ff;
+    color: var(--primary);
+  }
+
+  .sidebar a.active {
+    background: #eff6ff;
+    color: var(--primary);
+    border-left-color: var(--primary);
+    font-weight: 600;
+  }
+
+  .sidebar .sub-link {
+    padding-left: 28px;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  /* 主内容 */
+  .main {
+    flex: 1;
+    padding: 40px 60px;
+    max-width: 1100px;
+  }
+
+  .header {
+    border-bottom: 3px solid var(--primary);
+    padding-bottom: 20px;
+    margin-bottom: 40px;
+  }
+
+  .header h1 {
+    margin: 0;
+    color: var(--primary-dark);
+    font-size: 32px;
+  }
+
+  .header .subtitle {
+    color: var(--text-muted);
+    margin-top: 8px;
+    font-size: 15px;
+  }
+
+  .header .meta {
+    margin-top: 12px;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  .header .meta a {
+    color: var(--primary);
+    text-decoration: none;
+  }
+
+  h2 {
+    color: var(--primary-dark);
+    border-left: 5px solid var(--primary);
+    padding-left: 14px;
+    margin-top: 50px;
+    font-size: 26px;
+  }
+
+  h3 {
+    color: var(--primary-dark);
+    margin-top: 30px;
+    font-size: 20px;
+  }
+
+  h4 {
+    color: var(--text);
+    margin-top: 20px;
+    font-size: 16px;
+  }
+
+  p { margin: 12px 0; }
+
+  /* 代码 */
+  code {
+    background: #eef2ff;
+    color: #4338ca;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+    font-size: 0.9em;
+  }
+
+  pre {
+    background: var(--code-bg);
+    color: var(--code-text);
+    padding: 16px 20px;
+    border-radius: 8px;
+    overflow-x: auto;
+    line-height: 1.5;
+    font-size: 14px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+
+  pre code {
+    background: transparent;
+    color: inherit;
+    padding: 0;
+    font-size: inherit;
+  }
+
+  /* 表格 */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    background: var(--bg-card);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
+
+  th, td {
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+
+  th {
+    background: var(--primary);
+    color: white;
+    font-weight: 600;
+  }
+
+  tr:hover td {
+    background: #f1f5f9;
+  }
+
+  /* 卡片 */
+  .card {
+    background: var(--bg-card);
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin: 16px 0;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    border: 1px solid var(--border);
+  }
+
+  .card.info {
+    border-left: 4px solid var(--accent);
+    background: #f0f9ff;
+  }
+
+  .card.success {
+    border-left: 4px solid var(--success);
+    background: #f0fdf4;
+  }
+
+  .card.warning {
+    border-left: 4px solid var(--warning);
+    background: #fffbeb;
+  }
+
+  .card.danger {
+    border-left: 4px solid var(--danger);
+    background: #fef2f2;
+  }
+
+  .card .card-title {
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: var(--primary-dark);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* ASCII 图 */
+  .ascii {
+    background: #0f172a;
+    color: #94a3b8;
+    padding: 16px 20px;
+    border-radius: 8px;
+    font-family: "JetBrains Mono", Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.4;
+    overflow-x: auto;
+    white-space: pre;
+    margin: 16px 0;
+  }
+
+  .ascii .hl { color: #fbbf24; font-weight: bold; }
+  .ascii .ok { color: #34d399; }
+  .ascii .err { color: #f87171; }
+  .ascii .info { color: #60a5fa; }
+
+  /* 高亮文字 */
+  .hl-text {
+    background: var(--highlight);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-weight: 500;
+  }
+
+  /* 公式 */
+  .formula {
+    background: #fafafa;
+    padding: 16px;
+    text-align: center;
+    border-radius: 8px;
+    font-family: "Cambria Math", "Times New Roman", serif;
+    font-size: 18px;
+    font-style: italic;
+    margin: 16px 0;
+    border: 1px solid var(--border);
+  }
+
+  /* 流程图（CSS方块图） */
+  .flowchart {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 20px 0;
+    gap: 8px;
+  }
+
+  .flow-box {
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    color: white;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 500;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    min-width: 200px;
+    text-align: center;
+  }
+
+  .flow-arrow {
+    color: var(--primary);
+    font-size: 20px;
+    font-weight: bold;
+  }
+
+  /* 对比布局 */
+  .compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 20px 0;
+  }
+
+  .compare-item {
+    padding: 20px;
+    border-radius: 10px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+  }
+
+  .compare-item.bad {
+    border-top: 4px solid var(--danger);
+  }
+
+  .compare-item.good {
+    border-top: 4px solid var(--success);
+  }
+
+  .compare-item h4 {
+    margin-top: 0;
+  }
+
+  /* 时间线（流水线图） */
+  .timeline {
+    background: #0f172a;
+    padding: 20px;
+    border-radius: 8px;
+    color: #e2e8f0;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 13px;
+    margin: 16px 0;
+    overflow-x: auto;
+  }
+
+  .timeline-row {
+    display: flex;
+    align-items: center;
+    margin: 6px 0;
+    white-space: nowrap;
+  }
+
+  .timeline-label {
+    width: 80px;
+    color: #94a3b8;
+    flex-shrink: 0;
+  }
+
+  .timeline-block {
+    height: 28px;
+    margin-right: 2px;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    color: white;
+    padding: 0 8px;
+  }
+
+  .tl-comm { background: #f59e0b; }
+  .tl-comp { background: #10b981; }
+  .tl-empty { background: transparent; }
+
+  /* 步骤 */
+  .step {
+    display: flex;
+    gap: 16px;
+    margin: 16px 0;
+    align-items: flex-start;
+  }
+
+  .step-num {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    background: var(--primary);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+  }
+
+  .step-content { flex: 1; }
+  .step-content h4 { margin-top: 0; }
+
+  /* 标签 */
+  .tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-right: 4px;
+  }
+
+  .tag-tp { background: #dbeafe; color: #1e40af; }
+  .tag-sp { background: #d1fae5; color: #065f46; }
+  .tag-async { background: #fed7aa; color: #9a3412; }
+  .tag-cp { background: #f3e8ff; color: #6b21a8; }
+
+  /* 章节锚点 */
+  section { scroll-margin-top: 20px; }
+
+  /* 页脚 */
+  .footer {
+    margin-top: 60px;
+    padding: 20px 0;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 13px;
+    border-top: 1px solid var(--border);
+  }
+
+  /* 响应式 */
+  @media (max-width: 1024px) {
+    .layout { flex-direction: column; }
+    .sidebar {
+      width: 100%;
+      position: static;
+      height: auto;
+      border-right: none;
+      border-bottom: 1px solid var(--border);
+    }
+    .main { padding: 30px 20px; }
+    .compare { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- 侧边栏目录 -->
+  <aside class="sidebar">
+    <h3>目录</h3>
+    <ul>
+      <li><a href="#part1" class="active">第一部分：SP 集成方案</a></li>
+      <li><a href="#sp-bg" class="sub-link">为什么需要 SP</a></li>
+      <li><a href="#sp-arch" class="sub-link">核心设计</a></li>
+      <li><a href="#sp-config" class="sub-link">配置与降级</a></li>
+      <li><a href="#sp-impl" class="sub-link">Pattern 实现</a></li>
+      <li><a href="#sp-runtime" class="sub-link">运行时适配</a></li>
+      <li><a href="#sp-vs-cp" class="sub-link">SP vs CP</a></li>
+
+      <li><a href="#part2">第二部分：AsyncTP 协同</a></li>
+      <li><a href="#async-problem" class="sub-link">为什么能 overlap</a></li>
+      <li><a href="#async-math" class="sub-link">数学基础</a></li>
+      <li><a href="#async-ag" class="sub-link">all_gather_matmul</a></li>
+      <li><a href="#async-rs" class="sub-link">matmul_reduce_scatter</a></li>
+      <li><a href="#async-symm" class="sub-link">Symmetric Memory</a></li>
+      <li><a href="#async-perf" class="sub-link">收益分析</a></li>
+
+      <li><a href="#part3">第三部分：图改写原理</a></li>
+      <li><a href="#graph-what" class="sub-link">什么是计算图</a></li>
+      <li><a href="#graph-fx" class="sub-link">FX Graph</a></li>
+      <li><a href="#graph-pattern" class="sub-link">Pattern 与子图</a></li>
+      <li><a href="#graph-rewrite" class="sub-link">替换操作</a></li>
+      <li><a href="#graph-why" class="sub-link">为什么用图改写</a></li>
+      <li><a href="#graph-flow" class="sub-link">完整流程</a></li>
+
+      <li><a href="#cheatsheet">速查表</a></li>
+    </ul>
+  </aside>
+
+  <!-- 主内容 -->
+  <main class="main">
+
+    <div class="header">
+      <h1>vLLM Sequence Parallelism 深度笔记</h1>
+      <div class="subtitle">从 SP 集成方案到 AsyncTP 协同，再到底层图改写机制</div>
+      <div class="meta">
+        参考来源：<a href="https://mp.weixin.qq.com/s/dztAI5PciugDzD2yv8a2_g" target="_blank">微信公众号「LLM高性能计算」 - elrond-g</a>
+        <br>整理时间：2026-04-30
+      </div>
+    </div>
+
+    <!-- ============ 第一部分 ============ -->
+    <section id="part1">
+      <h2>第一部分：vLLM 中的 SP 集成方案</h2>
+
+      <section id="sp-bg">
+        <h3>1.1 为什么需要 SP？</h3>
+        <p>SP 的集成是为了解决 <strong>张量并行（TP）的冗余开销</strong>。</p>
+
+        <div class="card warning">
+          <div class="card-title">问题描述</div>
+          TP 模式下，每次 AllReduce 后所有卡都会持有完整的 <code>[num_tokens, hidden_size]</code> 张量，
+          导致 RMSNorm、残差相加等<strong>逐元素操作在所有卡上重复执行</strong>，浪费计算资源和显存。
+          一个 32 层模型一次前向推理需要 <strong>64 次 AllReduce</strong>，冗余开销显著。
+        </div>
+
+        <h4>SP 的核心设计目标</h4>
+        <table>
+          <tr><th>目标</th><th>说明</th></tr>
+          <tr><td>通信量持平</td><td>AllReduce = ReduceScatter + AllGather，拆分后总通信量无增加</td></tr>
+          <tr><td>计算/显存降为 1/T</td><td>T 为 TP 卡数，单卡只处理 1/T 的 token</td></tr>
+          <tr><td>正交性</td><td>与 TP 在 hidden 维度的切分正交，可叠加</td></tr>
+          <tr><td>对模型透明</td><td>不需要修改任何模型代码</td></tr>
+        </table>
+      </section>
+
+      <section id="sp-arch">
+        <h3>1.2 核心架构：编译期图改写方案</h3>
+        <div class="card info">
+          vLLM <strong>没有要求模型适配 SP 版本</strong>，而是选择在 <code>torch.compile</code> 的计算图阶段
+          通过 <strong>Pattern Matcher 自动完成子图替换</strong>，核心组件是 <code>SequenceParallelismPass</code>。
+        </div>
+
+        <ul>
+          <li>优化逻辑集中在编译层，可<strong>动态决策</strong>是否开启 SP</li>
+          <li>与 TP、AsyncTP 完全正交，可协同生效</li>
+        </ul>
+      </section>
+
+      <section id="sp-config">
+        <h3>1.3 配置与自动降级逻辑</h3>
+
+        <h4>核心配置项（<code>vllm/config/compilation.py</code>）</h4>
+        <table>
+          <tr><th>配置项</th><th>说明</th></tr>
+          <tr><td><code>enable_sp</code></td><td>SP 总开关，要求 TP&gt;1；hidden_size 小于阈值会自动关闭</td></tr>
+          <tr><td><code>sp_min_token_num</code></td><td>token 数下限，低于阈值退化回普通 TP，避免 Scatter/Gather 固定开销超过节省的计算量</td></tr>
+        </table>
+
+        <h4>自动降级判定（<code>get_sequence_parallelism_threshold</code>）</h4>
+        <ul>
+          <li>仅支持 CUDA 设备，目前只对 <strong>H100（计算能力 90）</strong> 配置了阈值</li>
+          <li>H100 上要求模型 <code>hidden_size ≥ 8192</code></li>
+          <li>LLaMA-7B（4096）、Qwen2-7B（3584）等会被自动跳过</li>
+        </ul>
+
+        <div class="formula">
+          min_token_num = (min_per_gpu_size_mb × tp_size × MiB) / (hidden_size × element_size)
+        </div>
+        <p>H100 上 <code>min_per_gpu_size_mb = 8MB</code>，hidden_size 越大、TP 卡数越多，门槛越低。</p>
+      </section>
+
+      <section id="sp-impl">
+        <h3>1.4 核心实现：SequenceParallelismPass</h3>
+
+        <h4>4 种待匹配的子图 Pattern</h4>
+        <table>
+          <tr><th>Pattern 类型</th><th>适用场景</th></tr>
+          <tr><td><code>FirstAllReduceRMSNormPattern</code></td><td>Block 入口的<strong>无残差</strong>场景：AllReduce → RMSNorm</td></tr>
+          <tr><td><code>MiddleAllReduceRMSNormPattern</code></td><td>Block 中间<strong>带残差融合</strong>：AllReduce → 残差相加 + 融合 RMSNorm</td></tr>
+          <tr><td><code>FirstAllReduceRMSNormStaticFP8Pattern</code></td><td>无残差场景的 <strong>Static FP8 量化</strong>变体</td></tr>
+          <tr><td><code>MiddleAllReduceRMSNormStaticFP8Pattern</code></td><td>带残差场景的 <strong>Static FP8 量化</strong>变体</td></tr>
+        </table>
+
+        <h4>自定义通信算子注册</h4>
+        <p>在 <code>vllm/distributed/parallel_state.py</code> 中通过 <code>direct_register_custom_op</code> 把
+        ReduceScatter、AllGather 注册为 <code>torch.ops.vllm</code> 自定义算子，并实现 <code>fake impl</code> 做编译期 shape 推理：</p>
+        <ul>
+          <li><strong>ReduceScatter</strong>：fake impl 输出张量 token 维（dim=0）为输入的 1/T</li>
+          <li><strong>AllGather</strong>：fake impl 输出张量 token 维为输入的 T 倍</li>
+        </ul>
+
+        <h4>子图替换逻辑</h4>
+        <div class="card success">
+          <div class="card-title">无残差场景</div>
+          <code>Input → AllReduce → RMSNorm → Output</code><br>
+          替换为：<br>
+          <code>Input → ReduceScatter → 本地 RMSNorm → AllGather → Output</code><br>
+          单卡仅计算 <strong>1/T</strong> 的 token 对应的 Norm。
+        </div>
+
+        <div class="card success">
+          <div class="card-title">带残差场景</div>
+          ReduceScatter 后得到当前 rank 的 token 段，<strong>全局残差也切分为对应段</strong>，
+          残差以 scatter 状态<strong>跨层传递</strong>，直到需要完整序列时才执行 AllGather，
+          单卡显存占用降低 T 倍。
+        </div>
+      </section>
+
+      <section id="sp-runtime">
+        <h3>1.5 运行时适配机制</h3>
+
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <h4><code>is_residual_scattered_for_sp</code> 函数</h4>
+            <p>位于 <code>vllm/v1/worker/utils.py</code>，判断当前残差张量是完整状态还是 scatter 状态。
+            piecewise 编译模式下，仅当输入 token 数在预编译的 size 列表中时，才保持残差为 scatter 状态。</p>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <h4>上游调度适配</h4>
+            <p>Scheduler 会将输入 token 数 <strong>pad 为 TP 卡数的整数倍</strong>，
+            保证 ReduceScatter 在 token 维（dim=0）可整除。</p>
+          </div>
+        </div>
+
+        <h4>开启示例</h4>
+<pre><code>LLM(
+    model="...",
+    tensor_parallel_size=4,
+    compilation_config={
+        "pass_config": {
+            "enable_sp": True,
+            "fuse_gemm_comms": True,   # 同时开启 AsyncTP，最大收益
+        },
+    },
+)</code></pre>
+
+        <div class="card info">
+          <div class="card-title">收益参考</div>
+          SP 本身收益约 <strong>5~15%</strong>，配合 AsyncTP 后收益<strong>显著提升（15-30%）</strong>。
+        </div>
+      </section>
+
+      <section id="sp-vs-cp">
+        <h3>1.6 SP vs CP（Context Parallelism）</h3>
+        <table>
+          <tr><th>维度</th><th><span class="tag tag-sp">SP</span></th><th><span class="tag tag-cp">CP</span></th></tr>
+          <tr><td>优化定位</td><td>编译期图改写</td><td>运行时并行机制</td></tr>
+          <tr><td>解决问题</td><td>TP 下逐元素操作冗余</td><td>超长上下文下 KV Cache 放不下</td></tr>
+          <tr><td>对模型透明度</td><td>完全透明</td><td>需要 Attention 后端适配</td></tr>
+          <tr><td>正交性</td><td colspan="2" style="text-align:center">两者可叠加使用</td></tr>
+        </table>
+      </section>
+    </section>
+
+    <!-- ============ 第二部分 ============ -->
+    <section id="part2">
+      <h2>第二部分：AsyncTP 协同 —— 通信与计算如何 overlap</h2>
+
+      <section id="async-problem">
+        <h3>2.1 问题本质：表面看不能 overlap</h3>
+
+        <p>经典的 SP + TP 流程：</p>
+        <div class="ascii">Rank 0: [A0]  ──┐
+Rank 1: [A1]  ──┼── <span class="hl">AllGather</span> ──&gt; [A0|A1|A2|A3] ──&gt; <span class="hl">GEMM</span>(A, W) ──&gt; [Y0|Y1|Y2|Y3] ──&gt; <span class="hl">ReduceScatter</span> ──&gt; [Y_local]
+Rank 2: [A2]  ──┤
+Rank 3: [A3]  ──┘</div>
+
+        <div class="card danger">
+          <div class="card-title">朴素实现的串行依赖</div>
+          1. GEMM 必须等 AllGather <strong>完全完成</strong>（拿到所有数据）<br>
+          2. ReduceScatter 必须等 GEMM <strong>完全完成</strong><br>
+          → 通信和计算纯串行，无法 overlap
+        </div>
+      </section>
+
+      <section id="async-math">
+        <h3>2.2 关键洞察：矩阵乘法的"行可分性"</h3>
+        <p>这是 AsyncTP 的<strong>核心数学基础</strong>：</p>
+
+        <div class="formula">Y = A · W</div>
+        <p>其中 A 是 [N, K]，W 是 [K, M]，Y 是 [N, M]。</p>
+
+        <div class="card success">
+          <div class="card-title">关键性质</div>
+          Y 在<strong>行维度（N 维）上完全独立</strong>：
+          <div class="formula">Y<sub>i</sub> = A<sub>i</sub> · W</div>
+          第 i 行只依赖 A 的第 i 行 → 拿到 A 的某些行就能立即算出 Y 的对应行。
+        </div>
+
+        <div class="card warning">
+          <div class="card-title">视角对比</div>
+          <table>
+            <tr><th>视角</th><th>依赖粒度</th><th>能否 overlap</th></tr>
+            <tr><td>张量级</td><td>AllGather 整体 → GEMM 整体</td><td>❌ 串行</td></tr>
+            <tr><td>行级</td><td>A[i] → Y[i]，各行独立</td><td>✅ 可流水线</td></tr>
+          </table>
+        </div>
+      </section>
+
+      <section id="async-ag">
+        <h3>2.3 all_gather_matmul 的实现原理</h3>
+
+        <h4>分块流水线</h4>
+        <p>假设 TP=4，每个 rank 持有 A 的一个分片 A<sub>i</sub>（shape [N/4, K]）。</p>
+
+        <h4>朴素实现（串行）</h4>
+        <div class="timeline">
+          <div class="timeline-row">
+            <span class="timeline-label">通信:</span>
+            <div class="timeline-block tl-comm" style="width:240px">AllGather (T_comm)</div>
+          </div>
+          <div class="timeline-row">
+            <span class="timeline-label">计算:</span>
+            <div class="timeline-block tl-empty" style="width:240px"></div>
+            <div class="timeline-block tl-comp" style="width:240px">GEMM (T_gemm)</div>
+          </div>
+          <div style="margin-top:10px;color:#94a3b8">总耗时 = T_comm + T_gemm</div>
+        </div>
+
+        <h4>AsyncTP 实现（流水线）</h4>
+        <div class="timeline">
+          <div class="timeline-row">
+            <span class="timeline-label">通信:</span>
+            <div class="timeline-block tl-empty" style="width:60px"></div>
+            <div class="timeline-block tl-comm" style="width:60px">recv A1</div>
+            <div class="timeline-block tl-comm" style="width:60px">recv A2</div>
+            <div class="timeline-block tl-comm" style="width:60px">recv A3</div>
+          </div>
+          <div class="timeline-row">
+            <span class="timeline-label">计算:</span>
+            <div class="timeline-block tl-comp" style="width:60px">GEMM A0</div>
+            <div class="timeline-block tl-comp" style="width:60px">GEMM A1</div>
+            <div class="timeline-block tl-comp" style="width:60px">GEMM A2</div>
+            <div class="timeline-block tl-comp" style="width:60px">GEMM A3</div>
+          </div>
+          <div style="margin-top:10px;color:#94a3b8">↑ 第一块立即开始，无需等通信；最后只剩一块 GEMM</div>
+          <div style="color:#fbbf24">总耗时 ≈ max(T_comm, T_gemm) + T_gemm/T</div>
+        </div>
+
+        <h4>核心 Triton kernel 伪代码</h4>
+<pre><code>def all_gather_matmul(a_local, weight):
+    # 1. 在 symmetric memory 上分配输出 buffer
+    a_full = symm_mem.empty([N, K])
+    a_full[my_rank * chunk : (my_rank+1) * chunk] = a_local
+
+    # 2. 触发 P2P 写入信号（无阻塞）
+    symm_mem.barrier_async()
+
+    # 3. 启动 GEMM kernel，按 chunk 流水线
+    output = torch.empty([N, M])
+    for step in range(world_size):
+        src_rank = (my_rank + step) % world_size
+
+        # 等待该 chunk 到达（轻量级 spin-wait）
+        symm_mem.wait_signal(src_rank)
+
+        # 立刻 GEMM 这一块
+        chunk_a = a_full[src_rank * chunk : (src_rank+1) * chunk]
+        output[src_rank * chunk : (src_rank+1) * chunk] = chunk_a @ weight
+
+    return output</code></pre>
+
+        <div class="card info">
+          <strong>关键点：</strong>
+          <ul style="margin:8px 0">
+            <li>第一个 chunk（自己的）<strong>不需要任何通信</strong>，立即可算</li>
+            <li>后续每个 chunk 的通信和前一个 chunk 的计算<strong>同时进行</strong></li>
+            <li>信号同步是<strong>细粒度</strong>的，不是 NCCL 那种粗粒度全局 barrier</li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="async-rs">
+        <h3>2.4 fused_matmul_reduce_scatter 的实现原理</h3>
+
+        <h4>ReduceScatter 的可分性</h4>
+        <div class="formula">Y<sub>rank=i</sub><sup>out</sup> = Σ<sub>j=0..T-1</sub> Y<sub>j</sub><sup>in</sup>[i·N/T : (i+1)·N/T]</div>
+        <p>每个输出分片只依赖<strong>所有 rank 上对应位置的那一块</strong>，与其他位置无关。</p>
+
+        <h4>流水线实现</h4>
+        <div class="timeline">
+          <div class="timeline-row">
+            <span class="timeline-label">计算:</span>
+            <div class="timeline-block tl-comp" style="width:80px">GEMM 块0</div>
+            <div class="timeline-block tl-comp" style="width:80px">GEMM 块1</div>
+            <div class="timeline-block tl-comp" style="width:80px">GEMM 块2</div>
+            <div class="timeline-block tl-comp" style="width:80px">GEMM 块3</div>
+          </div>
+          <div class="timeline-row">
+            <span class="timeline-label">通信:</span>
+            <div class="timeline-block tl-empty" style="width:80px"></div>
+            <div class="timeline-block tl-comm" style="width:80px">send 块0</div>
+            <div class="timeline-block tl-comm" style="width:80px">send 块1</div>
+            <div class="timeline-block tl-comm" style="width:80px">send 块2</div>
+            <div class="timeline-block tl-comm" style="width:80px">send+reduce</div>
+          </div>
+          <div style="margin-top:10px;color:#fbbf24">总耗时 ≈ T_gemm + T_comm/T</div>
+        </div>
+        <p>每算完一块就立即异步发送，与下一块的 GEMM 重叠。</p>
+      </section>
+
+      <section id="async-symm">
+        <h3>2.5 为什么需要 Symmetric Memory？</h3>
+
+        <div class="card warning">
+          <div class="card-title">传统 NCCL AllGather 的局限</div>
+          NCCL AllGather 是一个"<strong>黑盒大操作</strong>"：你调用 <code>dist.all_gather()</code>，
+          它内部完成所有通信，返回完整张量。<strong>你没有办法在通信进行中读取"已经到达的部分"</strong>。
+        </div>
+
+        <h4>torch.distributed._symmetric_memory</h4>
+        <p>PyTorch 2.x 引入的关键基础设施 —— <strong>对称共享内存</strong>：</p>
+<pre><code># 每个 rank 在同一段虚拟地址上分配 buffer
+sym_buffer = symm_mem.empty(shape, device='cuda')
+
+# 所有 rank 可以通过 P2P 直接读写其他 rank 的 buffer
+# 无需经过 NCCL 的同步语义
+remote_data = sym_buffer.get_remote(rank=1)  # 直接拿到 rank 1 的数据</code></pre>
+
+        <div class="card success">
+          这样 GEMM kernel 可以<strong>主动去"拉"数据</strong>，
+          而不是被动等待通信完成 → 实现细粒度的流水线。
+        </div>
+      </section>
+
+      <section id="async-perf">
+        <h3>2.6 收益分析</h3>
+
+        <div class="formula">
+          Speedup = (T<sub>comm</sub> + T<sub>gemm</sub>) / (max(T<sub>comm</sub>, T<sub>gemm</sub>) + min(T<sub>comm</sub>, T<sub>gemm</sub>)/T)
+        </div>
+
+        <table>
+          <tr><th>场景</th><th>加速比</th></tr>
+          <tr><td>T_comm ≈ T_gemm（通信计算均衡）</td><td>接近 <strong>2×</strong></td></tr>
+          <tr><td>T_comm ≪ T_gemm（计算密集）</td><td>几乎完全隐藏通信</td></tr>
+          <tr><td>T_comm ≫ T_gemm（通信受限）</td><td>受带宽限制，加速有限</td></tr>
+        </table>
+
+        <div class="card info">
+          <strong>实际场景：</strong> H100 + NVLink 环境下，大 batch + 大 hidden_size 的 prefill 阶段，
+          通信和计算量级相当，AsyncTP 通常能带来 <strong>15-30%</strong> 的端到端加速。
+        </div>
+
+        <h4>为什么 SP 是 AsyncTP 的前提？</h4>
+        <div class="compare">
+          <div class="compare-item bad">
+            <h4>❌ 没有 SP</h4>
+            <p>图结构：<code>GEMM → AllReduce</code></p>
+            <p>AllReduce 是"先 reduce 再广播"，无法做行级流水线</p>
+          </div>
+          <div class="compare-item good">
+            <h4>✅ 有 SP</h4>
+            <p>图结构：<code>AllGather → GEMM → ReduceScatter</code></p>
+            <p>这两个通信原语<strong>天然支持行维度的分块流水线</strong></p>
+          </div>
+        </div>
+
+        <p style="margin-top:16px">所以 SP 不仅是"消除冗余计算"，更重要的是
+        <span class="hl-text">把通信原语改造成了适合 overlap 的形式</span>
+         —— 这才是 vLLM 把它们设计成正交且必须先开 SP 的根本原因。</p>
+      </section>
+    </section>
+
+    <!-- ============ 第三部分 ============ -->
+    <section id="part3">
+      <h2>第三部分：图改写原理 —— 这个"图"到底是什么？</h2>
+
+      <section id="graph-what">
+        <h3>3.1 这个"图"是什么？—— PyTorch 的计算图</h3>
+
+        <h4>从代码到图</h4>
+<pre><code>def transformer_block(x, w1, residual):
+    out = torch.matmul(x, w1)
+    out = all_reduce(out)
+    out = out + residual
+    out = rms_norm(out)
+    return out</code></pre>
+
+        <p>在 <code>torch.compile</code> 内部，这段代码会被转换成一张"图"：</p>
+
+        <div class="ascii">        x ──────┐
+                ▼
+w1 ──────&gt; <span class="hl">[matmul]</span>
+                │
+                ▼
+          <span class="hl">[all_reduce]</span>
+                │
+                ▼  residual ──┐
+          <span class="hl">[add]</span> ◄─────────────┘
+                │
+                ▼
+          <span class="hl">[rms_norm]</span>
+                │
+                ▼
+             output</div>
+
+        <div class="card info">
+          <strong>计算图（Computation Graph）的两个核心元素：</strong>
+          <ul style="margin:8px 0">
+            <li><strong>节点（Node）</strong>：一个算子（op），如 matmul、all_reduce、add、rms_norm</li>
+            <li><strong>边（Edge）</strong>：数据流（张量）从一个算子流向另一个算子</li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="graph-fx">
+        <h3>3.2 这张图从哪来？—— torch.compile 的工作流程</h3>
+
+        <div class="flowchart">
+          <div class="flow-box">你的 Python 代码</div>
+          <div class="flow-arrow">↓ ① TorchDynamo 追踪</div>
+          <div class="flow-box">FX Graph (中间表示)</div>
+          <div class="flow-arrow">↓ ② 图优化 Pass <span style="color:#fbbf24">（vLLM 在这里插手！）</span></div>
+          <div class="flow-box">优化后的 FX Graph</div>
+          <div class="flow-arrow">↓ ③ Inductor 后端编译</div>
+          <div class="flow-box">高效的 CUDA Kernel</div>
+        </div>
+
+        <h4>TorchDynamo 的神奇之处</h4>
+        <ul>
+          <li>不是静态分析代码</li>
+          <li>而是<strong>实际运行一遍</strong>，用 CPython 的 frame evaluation API 拦截字节码</li>
+          <li>记录所有 tensor 操作，构建 FX Graph</li>
+        </ul>
+
+        <h4>FX Graph 长什么样？</h4>
+<pre><code>graph():
+    %x : [num_users=1] = placeholder[target=x]
+    %w1 : [num_users=1] = placeholder[target=w1]
+    %residual : [num_users=1] = placeholder[target=residual]
+    %matmul : [num_users=1] = call_function[target=torch.matmul](args=(%x, %w1))
+    %all_reduce : [num_users=1] = call_function[target=torch.ops.vllm.all_reduce.default](args=(%matmul,))
+    %add : [num_users=1] = call_function[target=operator.add](args=(%all_reduce, %residual))
+    %rms_norm : [num_users=1] = call_function[target=torch.ops.vllm.rms_norm.default](args=(%add,))
+    return (%rms_norm,)</code></pre>
+
+        <p>每行就是图中的一个节点，<code>%xxx</code> 是中间结果（边）。
+        <span class="hl-text">这就是 vLLM 要改写的那张图。</span></p>
+      </section>
+
+      <section id="graph-pattern">
+        <h3>3.3 子图与 Pattern 是什么？</h3>
+
+        <h4>子图（Subgraph）</h4>
+        <p>大图里的一小块相连节点。vLLM 关心的子图：</p>
+        <div class="ascii">    input
+      │
+      ▼
+ <span class="hl">[all_reduce]</span>
+      │
+      ▼  residual
+   <span class="hl">[add]</span> ◄──────
+      │
+      ▼
+  <span class="hl">[rms_norm]</span>
+      │
+      ▼
+   output</div>
+        <p>这个 4 节点子图在一个 Transformer 模型里可能出现<strong>几十次</strong>。</p>
+
+        <h4>Pattern（模式）</h4>
+        <p>= 子图的"模板"。就像正则表达式 <code>\d{3}-\d{4}</code> 能匹配 "123-4567"，
+        Pattern 是对子图结构的描述。</p>
+
+<pre><code>class MiddleAllReduceRMSNormPattern:
+    def pattern(self, x, residual, weight):
+        """描述要匹配的子图结构"""
+        x = torch.ops.vllm.all_reduce(x)
+        x = x + residual
+        out = torch.ops.vllm.rms_norm(x, weight)
+        return out, x
+
+    def replacement(self, x, residual, weight):
+        """描述要替换成的新子图"""
+        x = torch.ops.vllm.reduce_scatter(x)       # 替换 all_reduce
+        residual = chunk(residual, my_rank)        # 残差也切片
+        x = x + residual
+        out = torch.ops.vllm.rms_norm(x, weight)   # 本地 rms_norm
+        return out, x</code></pre>
+
+        <div class="card success">
+          核心就两个函数：<br>
+          • <code>pattern()</code>：<strong>"我要找这种形状的子图"</strong><br>
+          • <code>replacement()</code>：<strong>"找到后换成这种形状"</strong>
+        </div>
+      </section>
+
+      <section id="graph-rewrite">
+        <h3>3.4 替换是怎么操作的？</h3>
+
+        <h4>算法：子图同构匹配</h4>
+        <p>这是计算机科学经典的 <strong>子图同构（Subgraph Isomorphism）</strong> 问题：
+        给定大图 G 和小图 P，找到 G 中所有与 P 结构相同的部分。</p>
+
+<pre><code>from torch.fx import subgraph_rewriter
+
+# 一行代码完成"找 + 换"
+subgraph_rewriter.replace_pattern(
+    gm=my_fx_graph,           # 大图（整个模型）
+    pattern=pattern_fn,       # 要找的模式
+    replacement=replacement_fn # 替换成什么
+)</code></pre>
+
+        <h4>匹配过程示例</h4>
+        <div class="ascii">... [matmul_1] ──&gt; <span class="ok">[all_reduce_1]</span> ──┬──&gt; <span class="ok">[add_1]</span> ──&gt; <span class="ok">[rms_norm_1]</span> ──&gt; [matmul_2] ──&gt; ...
+                                  ▲
+                            residual_1
+
+匹配器扫描每个节点：
+  尝试 1: matmul_1 起点 → 不是 all_reduce，<span class="err">跳过</span>
+  尝试 2: all_reduce_1 起点
+          ✓ 节点类型匹配 all_reduce
+          ✓ 下游是 add
+          ✓ add 的另一个输入是 residual
+          ✓ add 下游是 rms_norm
+          → <span class="ok">匹配成功！</span>
+  ...</div>
+
+        <h4>替换过程：图的"外科手术"</h4>
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-content"><strong>切断旧节点连接</strong>：把 all_reduce → add → rms_norm 摘下来</div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-content"><strong>插入新节点</strong>：按 replacement() 创建 reduce_scatter、chunk、新 add、新 rms_norm</div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-content"><strong>重新连接边</strong>：旧的输入接到新的 reduce_scatter，新的 rms_norm 接到旧的下游</div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-content"><strong>删除旧节点</strong>：被孤立的旧节点被垃圾回收</div>
+        </div>
+
+        <h4>手术前后对比</h4>
+        <div class="compare">
+          <div class="compare-item bad">
+            <h4>手术前</h4>
+            <div class="ascii" style="font-size:11px">[matmul_1]
+    │
+    ▼
+<span class="err">[all_reduce_1]</span>
+    │
+    ▼  residual_1
+<span class="err">[add_1]</span> ◄──────
+    │
+    ▼
+<span class="err">[rms_norm_1]</span>
+    │
+    ▼
+[matmul_2]</div>
+          </div>
+          <div class="compare-item good">
+            <h4>手术后</h4>
+            <div class="ascii" style="font-size:11px">[matmul_1]
+    │
+    ▼
+<span class="ok">[reduce_scatter]</span>
+    │
+    ▼
+<span class="ok">[add_new]</span> ◄── <span class="ok">[chunk]</span> ◄── residual_1
+    │
+    ▼
+<span class="ok">[rms_norm_new]</span>
+    │
+    ▼
+[matmul_2]</div>
+          </div>
+        </div>
+
+        <p>整个图被<strong>原地修改</strong>了，但对外接口（输入输出）保持不变，
+        所以<span class="hl-text">模型代码完全不用改</span>。</p>
+      </section>
+
+      <section id="graph-why">
+        <h3>3.5 为什么用图改写而不是改模型代码？</h3>
+
+        <div class="compare">
+          <div class="compare-item bad">
+            <h4>❌ 思路 A：修改模型代码</h4>
+<pre style="font-size:12px"><code>class LlamaDecoderLayer:
+  def forward(self, x, residual):
+    # SP 版
+    x = reduce_scatter(x)
+    residual = chunk(residual, my_rank)
+    x = x + residual
+    x = rms_norm(x)
+    return x, residual</code></pre>
+            <strong>问题：</strong>
+            <ul>
+              <li>vLLM 支持几十种模型，每种都要改</li>
+              <li>FP8 量化又是一套</li>
+              <li>小模型/短序列还要写分支</li>
+              <li>模型代码非常臃肿</li>
+            </ul>
+          </div>
+          <div class="compare-item good">
+            <h4>✅ 思路 B：图改写（vLLM）</h4>
+<pre style="font-size:12px"><code># 模型代码永远干净：
+x = all_reduce(x)
+x = x + residual
+x = rms_norm(x)
+
+# 优化在编译期自动完成
+# - 需要 SP？注册 Pass
+# - 需要 AsyncTP？再注册一个
+# - 需要 FP8？Pattern 自动匹配</code></pre>
+            <strong>优点：</strong>
+            <ul>
+              <li>✅ 模型代码<strong>零侵入</strong></li>
+              <li>✅ 优化<strong>可组合</strong></li>
+              <li>✅ <strong>动态决策</strong>是否启用</li>
+              <li>✅ 易于<strong>单独测试</strong></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="card info">
+          这是<strong>编译器领域的经典思路</strong> —— 把优化和语义分离。
+          LLVM、GCC 做 CPU 优化的方式就是这样：你写的 C 代码很简单，编译器通过几十个 Pass 把它变得高效。
+        </div>
+      </section>
+
+      <section id="graph-flow">
+        <h3>3.6 vLLM 中 Pass 的完整流程</h3>
+
+        <div class="flowchart">
+          <div class="flow-box">用户定义模型（LlamaForCausalLM 等）</div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-box">vLLM 用 torch.compile 包装 forward</div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-box">TorchDynamo 追踪 → 原始 FX Graph</div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-box" style="background:linear-gradient(135deg,#f59e0b,#ef4444)">
+            PassManager 依次应用：<br>
+            <small>SequenceParallelismPass → AsyncTPPass → FusionPass → ...</small>
+          </div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-box">优化后的 FX Graph</div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-box">Inductor 后端生成 Triton/CUDA kernel</div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-box">运行时执行优化后的图</div>
+        </div>
+      </section>
+
+      <section>
+        <h3>3.7 一个比喻：装修房子</h3>
+        <table>
+          <tr><th>传统方式</th><th>vLLM 图改写方式</th></tr>
+          <tr><td>每种户型（模型）单独设计装修方案</td><td>所有户型先画一张标准毛坯图（FX Graph）</td></tr>
+          <tr><td>装修图纸里直接写"这里要用大理石"</td><td>毛坯图就是毛坯图，<strong>不管用什么材料</strong></td></tr>
+          <tr><td>换材料要重画所有户型</td><td>由<strong>装修队（Pass）</strong>按规则扫图替换</td></tr>
+          <tr><td>不同师傅的活儿会打架</td><td>各装修队按顺序进场，互不冲突</td></tr>
+        </table>
+      </section>
+    </section>
+
+    <!-- ============ 速查表 ============ -->
+    <section id="cheatsheet">
+      <h2>核心概念速查表</h2>
+      <table>
+        <tr><th>概念</th><th>解释</th><th>类比</th></tr>
+        <tr><td><strong>FX Graph</strong></td><td>PyTorch 把模型表示成的计算图</td><td>电路原理图</td></tr>
+        <tr><td><strong>Node / Op</strong></td><td>图中的一个算子</td><td>电路里的一个元件</td></tr>
+        <tr><td><strong>Edge / Tensor</strong></td><td>算子之间流动的数据</td><td>元件之间的导线</td></tr>
+        <tr><td><strong>Subgraph</strong></td><td>大图中的一小块相连节点</td><td>电路里的一个功能模块</td></tr>
+        <tr><td><strong>Pattern</strong></td><td>要匹配的子图"模板"</td><td>找元件的规格书</td></tr>
+        <tr><td><strong>Pass</strong></td><td>对图的一次优化操作</td><td>一个专门的装修工种</td></tr>
+        <tr><td><strong>Subgraph Rewriter</strong></td><td>执行 Pattern 匹配和替换的工具</td><td>自动化装修机器人</td></tr>
+        <tr><td><strong>TorchDynamo</strong></td><td>追踪 Python 代码生成 FX Graph</td><td>把手绘草图数字化</td></tr>
+        <tr><td><strong>Inductor</strong></td><td>把优化后的图编译成 CUDA kernel</td><td>把电路图变成实物</td></tr>
+        <tr><td><strong>Symmetric Memory</strong></td><td>多 rank 共享的对称地址空间，支持 P2P 直读</td><td>共享办公空间，谁都能拿东西</td></tr>
+        <tr><td><strong>AllReduce</strong></td><td>所有 rank 持有完整 reduce 结果</td><td>开会通报全员</td></tr>
+        <tr><td><strong>ReduceScatter</strong></td><td>reduce 后每个 rank 拿不同分片</td><td>分组讨论，各拿一部分结论</td></tr>
+        <tr><td><strong>AllGather</strong></td><td>每个 rank 拿到所有 rank 的数据</td><td>大家把作业交上来汇总</td></tr>
+      </table>
+
+      <div class="card success" style="margin-top:30px">
+        <div class="card-title">最终总结</div>
+        <ol style="margin:8px 0">
+          <li><strong>SP</strong> 在编译期把 <code>AllReduce</code> 改写为 <code>ReduceScatter + AllGather</code>，消除冗余 Norm/残差计算</li>
+          <li>这种改写的副产物是：<strong>通信原语变成了支持行级流水线的形式</strong>，为 AsyncTP 铺路</li>
+          <li><strong>AsyncTP</strong> 利用矩阵乘法的行独立性 + symmetric memory 的 P2P 能力，把通信和计算 overlap</li>
+          <li>整个机制通过 <strong>FX Graph + Pattern Matcher</strong> 实现，对模型代码完全透明，可灵活组合</li>
+        </ol>
+      </div>
+    </section>
+
+    <div class="footer">
+      vLLM SP 学习笔记 · 2026-04-30 整理
+    </div>
+
+  </main>
+</div>
+
+<script>
+  // 侧边栏目录联动
+  const links = document.querySelectorAll('.sidebar a');
+  const sections = document.querySelectorAll('section[id], h2[id], h3[id]');
+
+  function setActive() {
+    let current = '';
+    const scrollPos = window.scrollY + 100;
+    sections.forEach(sec => {
+      if (sec.offsetTop <= scrollPos) current = sec.id;
+    });
+    links.forEach(link => {
+      link.classList.remove('active');
+      if (link.getAttribute('href') === '#' + current) {
+        link.classList.add('active');
+      }
+    });
+  }
+  window.addEventListener('scroll', setActive);
+
+  // 平滑滚动
+  links.forEach(link => {
+    link.addEventListener('click', e => {
+      e.preventDefault();
+      const id = link.getAttribute('href').slice(1);
+      const target = document.getElementById(id);
+      if (target) target.scrollIntoView({behavior: 'smooth'});
+    });
+  });
+</script>
+
+</body>
+</html>
