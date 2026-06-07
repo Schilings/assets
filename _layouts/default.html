@@ -13,6 +13,8 @@
             --text-muted: #64748b;
             --border: #e2e8f0;
             --code-bg: #f1f5f9;
+            --sidebar-bg: #f1f5f9;
+            --sidebar-width: 240px;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -20,6 +22,7 @@
             line-height: 1.8;
             color: var(--text);
             background: var(--bg);
+            min-height: 100vh;
         }
         .nav {
             position: sticky; top: 0; z-index: 100;
@@ -31,7 +34,36 @@
         .nav .links { margin-left: auto; display: flex; gap: 16px; }
         .nav .links a { font-weight: 400; font-size: .88rem; opacity: .8; }
         .nav .links a:hover { opacity: 1; }
-        .container { max-width: 960px; margin: 0 auto; padding: 32px 24px; }
+
+        .wrapper { display: flex; max-width: 1200px; margin: 0 auto; padding: 0; }
+
+        /* Sidebar TOC */
+        .sidebar {
+            display: none;
+            width: var(--sidebar-width);
+            flex-shrink: 0;
+            padding: 32px 0 32px 16px;
+            position: sticky; top: 52px; height: calc(100vh - 52px);
+            overflow-y: auto;
+        }
+        .sidebar-label {
+            font-size: .72rem; font-weight: 600; text-transform: uppercase;
+            color: #94a3b8; letter-spacing: 1px; margin-bottom: 12px;
+            padding-left: 12px;
+        }
+        .sidebar a {
+            display: block; padding: 4px 12px;
+            font-size: .82rem; color: #64748b; text-decoration: none;
+            border-left: 2px solid transparent;
+            transition: all .12s; line-height: 1.5;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .sidebar a:hover { color: var(--primary); border-left-color: #cbd5e1; }
+        .sidebar a.active { color: var(--primary); border-left-color: var(--primary); font-weight: 600; }
+        .sidebar a.l2 { padding-left: 24px; font-size: .78rem; }
+        .sidebar a.l3 { padding-left: 36px; font-size: .75rem; }
+
+        .container { flex: 1; min-width: 0; padding: 32px 24px; }
         .content {
             background: var(--card-bg);
             border-radius: 10px;
@@ -40,8 +72,8 @@
             box-shadow: 0 1px 3px rgba(0,0,0,.04);
         }
         .content h1 { font-size: 1.8rem; margin-bottom: 16px; color: var(--primary); border-bottom: 2px solid var(--border); padding-bottom: 12px; }
-        .content h2 { font-size: 1.4rem; margin: 28px 0 12px; color: #1e40af; }
-        .content h3 { font-size: 1.15rem; margin: 20px 0 8px; color: #334155; }
+        .content h2 { font-size: 1.35rem; margin: 28px 0 12px; color: #1e40af; }
+        .content h3 { font-size: 1.1rem; margin: 20px 0 8px; color: #334155; }
         .content h4 { font-size: 1rem; margin: 16px 0 6px; color: #475569; }
         .content p { margin: 10px 0; }
         .content ul, .content ol { margin: 10px 0; padding-left: 24px; }
@@ -69,6 +101,8 @@
         .content th { background: #f1f5f9; font-weight: 600; }
         .content img { max-width: 100%; border-radius: 6px; margin: 8px 0; }
         .content hr { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+
+        @media (min-width: 1024px) { .sidebar { display: block; } }
     </style>
 </head>
 <body>
@@ -79,10 +113,60 @@
             <a href="https://github.com/Schilings/assets">GitHub</a>
         </div>
     </nav>
-    <div class="container">
-        <div class="content">
-            {{ content }}
+    <div class="wrapper">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-label">目录</div>
+            <div id="toc"></div>
+        </aside>
+        <div class="container">
+            <div class="content" id="content">
+                {{ content }}
+            </div>
         </div>
     </div>
+
+<script>
+(function() {
+    const content = document.getElementById('content');
+    const toc = document.getElementById('toc');
+    if (!content || !toc) return;
+
+    // Find all headings
+    const headings = content.querySelectorAll('h1, h2, h3, h4');
+    if (headings.length < 2) { document.getElementById('sidebar').style.display = 'none'; return; }
+
+    // Add id and build TOC links
+    const items = [];
+    headings.forEach((h, i) => {
+        const id = h.id || (h.textContent.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, ''));
+        h.id = id;
+        const level = parseInt(h.tagName[1]);
+        items.push({ id, text: h.textContent.trim(), level });
+    });
+
+    // Render TOC
+    toc.innerHTML = items.map(item =>
+        `<a href="#${item.id}" class="l${item.level}">${item.text}</a>`
+    ).join('');
+
+    // Active state tracking
+    const links = toc.querySelectorAll('a');
+    if (links.length === 0) return;
+
+    function updateActive() {
+        let current = links[0];
+        for (let i = 0; i < headings.length; i++) {
+            const rect = headings[i].getBoundingClientRect();
+            if (rect.top <= 100) current = links[i];
+            else break;
+        }
+        links.forEach(l => l.classList.remove('active'));
+        current.classList.add('active');
+    }
+
+    updateActive();
+    window.addEventListener('scroll', updateActive, { passive: true });
+})();
+</script>
 </body>
 </html>
