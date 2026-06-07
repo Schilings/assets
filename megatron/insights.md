@@ -1346,7 +1346,7 @@ _HIERARCHICAL_CONTEXT_PARALLEL_GROUPS = [
 
 #### 5. 在 TE 中的使用：`a2a+p2p` 通信模式
 
-在 [transformer_engine.py](/C:/Users/jiejiechen/PycharmProjects/koala_code/Megatron-LM/megatron/core/extensions/transformer_engine.py) 的 `TEDotProductAttention.__init__` 中：
+在 `transformer_engine.py` 的 `TEDotProductAttention.__init__` 中：
 
 ```python
 if cp_comm_type == "a2a+p2p":
@@ -1356,7 +1356,7 @@ if cp_comm_type == "a2a+p2p":
     )  # 返回 list of process groups
 ```
 
-**但实际上 TE 只使用 2 层**。在 [context_parallel.py](/C:/Users/jiejiechen/PycharmProjects/koala_code/TransformerEngine/transformer_engine/pytorch/attention/dot_product_attention/context_parallel.py) 的入口处：
+**但实际上 TE 只使用 2 层**。在 `context_parallel.py` 的入口处：
 
 ```python
 if cp_comm_type == "a2a+p2p":
