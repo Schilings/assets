@@ -1,0 +1,14 @@
+title: Schilings's Knowledge Base
+description: 大模型训练与推理技术笔记
+theme: null
+markdown: kramdown
+kramdown:
+  input: GFM
+  hard_wrap: true
+  syntax_highlighter: rouge
+defaults:
+  - scope:
+      path: ""
+      type: "pages"
+    values:
+      layout: "default"

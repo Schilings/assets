@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Assets 首页</title>
+    <title>Schilings's Knowledge Base</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -15,65 +15,98 @@
             justify-content: center;
             align-items: center;
         }
-        .container {
-            max-width: 640px;
-            width: 100%;
-            padding: 40px 24px;
+        .container { max-width: 720px; width: 100%; padding: 40px 24px; }
+        h1 { font-size: 2rem; color: #f0f6fc; margin-bottom: 6px; }
+        .subtitle { color: #8b949e; margin-bottom: 32px; font-size: .95rem; }
+        .section-title {
+            color: #58a6ff; font-size: .85rem; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 1px;
+            margin: 28px 0 12px; padding-bottom: 6px;
+            border-bottom: 1px solid #21262d;
         }
-        h1 {
-            font-size: 2rem;
-            margin-bottom: 8px;
-            color: #f0f6fc;
-        }
-        .subtitle {
-            color: #8b949e;
-            margin-bottom: 32px;
-            font-size: 0.95rem;
-        }
-        .card-list { display: flex; flex-direction: column; gap: 12px; }
+        .card-list { display: flex; flex-direction: column; gap: 10px; }
         .card {
-            display: block;
-            background: #161b22;
-            border: 1px solid #30363d;
-            border-radius: 8px;
-            padding: 20px 24px;
-            text-decoration: none;
-            color: #c9d1d9;
-            transition: border-color 0.2s, background 0.2s;
+            display: flex; align-items: center; gap: 14px;
+            background: #161b22; border: 1px solid #30363d;
+            border-radius: 8px; padding: 16px 20px;
+            text-decoration: none; color: #c9d1d9;
+            transition: border-color .2s, background .2s;
         }
-        .card:hover {
-            border-color: #58a6ff;
-            background: #1c2129;
+        .card:hover { border-color: #58a6ff; background: #1c2129; }
+        .card-icon { font-size: 1.4rem; flex-shrink: 0; }
+        .card-body { flex: 1; }
+        .card-title { font-size: 1rem; font-weight: 600; color: #58a6ff; margin-bottom: 2px; }
+        .card-desc { color: #8b949e; font-size: .82rem; }
+        .card-tag {
+            font-size: .7rem; padding: 2px 8px; border-radius: 10px;
+            font-weight: 600; text-transform: uppercase;
         }
-        .card-title {
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: #58a6ff;
-            margin-bottom: 4px;
-        }
-        .card-desc { color: #8b949e; font-size: 0.88rem; }
+        .tag-html { background: #1f6feb22; color: #58a6ff; }
+        .tag-md { background: #23863622; color: #3fb950; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Assets</h1>
-        <p class="subtitle">页面导航</p>
+        <h1>Knowledge Base</h1>
+        <p class="subtitle">大模型训练与推理技术笔记</p>
+
+        <div class="section-title">Knowledge</div>
         <div class="card-list">
-            <a class="card" href="vllm_sp.html">
-                <div class="card-title">vLLM SP</div>
-                <div class="card-desc">vLLM SP 分析页面</div>
+            <a class="card" href="knowledge.html">
+                <span class="card-icon">📚</span>
+                <div class="card-body">
+                    <div class="card-title">Knowledge 知识库</div>
+                    <div class="card-desc">算子、并行策略、DeepSeek、vLLM 等技术链接合集</div>
+                </div>
+                <span class="card-tag tag-md">MD</span>
             </a>
-            <a class="card" href="vllm_async_sp_symm_mem.html">
-                <div class="card-title">vLLM Async SP Symm Mem</div>
-                <div class="card-desc">vLLM 异步 SP 对称内存分析</div>
+        </div>
+
+        <div class="section-title">Megatron</div>
+        <div class="card-list">
+            <a class="card" href="megatron/insights.html">
+                <span class="card-icon">🧠</span>
+                <div class="card-body">
+                    <div class="card-title">Megatron-LM 新感悟</div>
+                    <div class="card-desc">ParallelState、Hybrid CP、DDP、Optimizer 深度分析</div>
+                </div>
+                <span class="card-tag tag-md">MD</span>
             </a>
-            <a class="card" href="megatron_sp_analysis.html">
-                <div class="card-title">Megatron SP Analysis</div>
-                <div class="card-desc">Megatron SP 分析页面</div>
+            <a class="card" href="megatron/sp-analysis.html">
+                <span class="card-icon">📊</span>
+                <div class="card-body">
+                    <div class="card-title">Megatron SP 深度分析</div>
+                    <div class="card-desc">Sequence Parallelism 可视化分析</div>
+                </div>
+                <span class="card-tag tag-html">HTML</span>
             </a>
-            <a class="card" href="fine-grained-offload.html">
-                <div class="card-title">Fine-Grained Offload</div>
-                <div class="card-desc">细粒度 Offload 分析页面</div>
+            <a class="card" href="megatron/fine-grained-offload.html">
+                <span class="card-icon">⚡</span>
+                <div class="card-body">
+                    <div class="card-title">Fine-Grained Offload</div>
+                    <div class="card-desc">细粒度 Activation Offload 深度解析</div>
+                </div>
+                <span class="card-tag tag-html">HTML</span>
+            </a>
+        </div>
+
+        <div class="section-title">vLLM</div>
+        <div class="card-list">
+            <a class="card" href="vllm/sp.html">
+                <span class="card-icon">🚀</span>
+                <div class="card-body">
+                    <div class="card-title">vLLM SP</div>
+                    <div class="card-desc">vLLM Sequence Parallelism 深度笔记</div>
+                </div>
+                <span class="card-tag tag-html">HTML</span>
+            </a>
+            <a class="card" href="vllm/async-sp-symm-mem.html">
+                <span class="card-icon">🔄</span>
+                <div class="card-body">
+                    <div class="card-title">vLLM Async SP — Symmetric Memory</div>
+                    <div class="card-desc">异步 SP 与对称内存深度解析</div>
+                </div>
+                <span class="card-tag tag-html">HTML</span>
             </a>
         </div>
     </div>
