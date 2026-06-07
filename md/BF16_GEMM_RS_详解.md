@@ -1,6 +1,7 @@
 ﻿---
 title: BF16 GEMM-RS 两阶段算子详解
 layout: default
+category: operator
 ---
 # BF16 GEMM-RS 两阶段算子详解
 

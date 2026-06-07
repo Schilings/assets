@@ -1,6 +1,7 @@
 ﻿---
 title: Knowledge 知识库
 layout: default
+category: other
 ---
 
 

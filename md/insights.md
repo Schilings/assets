@@ -1,6 +1,7 @@
 ﻿---
 title: Megatron-LM 新感悟
 layout: default
+category: megatron
 ---
 ### ParallelState
 

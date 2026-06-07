@@ -8,20 +8,28 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #0d1117;
-            color: #c9d1d9;
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
+            background: #0d1117; color: #c9d1d9;
+            min-height: 100vh; display: flex; justify-content: center; align-items: flex-start;
         }
-        .container { max-width: 760px; width: 100%; padding: 48px 24px; }
+        .container { max-width: 780px; width: 100%; padding: 48px 24px; }
         h1 { font-size: 2rem; color: #f0f6fc; margin-bottom: 4px; }
-        .subtitle { color: #8b949e; margin-bottom: 36px; font-size: .95rem; }
+        .subtitle { color: #8b949e; margin-bottom: 24px; font-size: .95rem; }
+
+        /* Tabs */
+        .tabs { display: flex; gap: 0; margin-bottom: 24px; border-bottom: 1px solid #21262d; }
+        .tab {
+            padding: 10px 20px; cursor: pointer; font-size: .9rem; font-weight: 600;
+            color: #8b949e; border-bottom: 2px solid transparent; transition: all .15s;
+            user-select: none; background: none; border-top: none; border-left: none; border-right: none;
+        }
+        .tab:hover { color: #c9d1d9; }
+        .tab.active { color: #58a6ff; border-bottom-color: #58a6ff; }
+
+        /* Section */
         .section-title {
             color: #58a6ff; font-size: .85rem; font-weight: 600;
             text-transform: uppercase; letter-spacing: 1px;
-            margin: 28px 0 12px; padding-bottom: 6px;
+            margin: 24px 0 12px; padding-bottom: 6px;
             border-bottom: 1px solid #21262d;
             display: flex; align-items: center; gap: 8px;
         }
@@ -29,6 +37,8 @@
             background: #1f6feb33; color: #58a6ff;
             font-size: .72rem; padding: 1px 7px; border-radius: 10px;
         }
+
+        /* Cards */
         .card-list { display: flex; flex-direction: column; gap: 10px; }
         .card {
             display: flex; align-items: center; gap: 14px;
@@ -48,6 +58,8 @@
         .tag-html { background: #1f6feb22; color: #58a6ff; }
         .tag-md { background: #23863622; color: #3fb950; }
         .empty { color: #484f58; font-size: .88rem; padding: 12px 0; }
+        .view { display: none; }
+        .view.active { display: block; }
         .footer { margin-top: 40px; text-align: center; color: #484f58; font-size: .78rem; }
         .footer a { color: #8b949e; text-decoration: none; }
         .footer a:hover { color: #58a6ff; }
@@ -56,35 +68,47 @@
 <body>
     <div class="container">
         <h1>Knowledge Base</h1>
-        <p class="subtitle">大模型训练与推理技术笔记 — 丢文件到 md/ 或 h5/ 即自动上线</p>
+        <p class="subtitle">大模型训练与推理技术笔记</p>
 
-        <div class="section-title">Markdown <span class="count" id="md-count">-</span></div>
-        <div class="card-list" id="md-list"><div class="empty">加载中...</div></div>
+        <div class="tabs">
+            <button class="tab active" data-view="topic">按主题</button>
+            <button class="tab" data-view="type">按类型</button>
+        </div>
 
-        <div class="section-title">HTML5 <span class="count" id="h5-count">-</span></div>
-        <div class="card-list" id="h5-list"><div class="empty">加载中...</div></div>
+        <div class="view active" id="view-topic">
+            <div id="topic-content"><div class="empty">加载中...</div></div>
+        </div>
+        <div class="view" id="view-type">
+            <div class="section-title">Markdown <span class="count" id="md-count">-</span></div>
+            <div class="card-list" id="md-list"><div class="empty">加载中...</div></div>
+            <div class="section-title">HTML5 <span class="count" id="h5-count">-</span></div>
+            <div class="card-list" id="h5-list"><div class="empty">加载中...</div></div>
+        </div>
 
         <div class="footer">
-            <a href="https://github.com/Schilings/assets">GitHub Repo</a> · 丢文件到 <code>md/</code> 或 <code>h5/</code> 目录，push 后自动出现
+            <a href="https://github.com/Schilings/assets">GitHub Repo</a> · 丢文件到 <code>md/</code> 或 <code>h5/</code> 即可 · MD 文件加 <code>category: xxx</code> front matter 自动归类
         </div>
     </div>
 
 <script>
 const REPO = 'Schilings/assets';
 const BRANCH = 'master';
-const base = `https://api.github.com/repos/${REPO}/git/trees/${BRANCH}`;
+const RAW_BASE = `https://raw.githubusercontent.com/${REPO}/${BRANCH}/`;
+const API_BASE = `https://api.github.com/repos/${REPO}/git/trees/${BRANCH}`;
 
-async function fetchTree(path) {
-    const res = await fetch(`${base}?recursive=1`);
-    if (!res.ok) return [];
-    const data = await res.json();
-    return data.tree.filter(t => t.type === 'blob' && t.path.startsWith(path + '/'));
-}
+// Topic icons & order
+const TOPIC_META = {
+    'megatron':  { icon: '🧠', label: 'Megatron' },
+    'vllm':      { icon: '🚀', label: 'vLLM' },
+    'operator':  { icon: '🧮', label: '算子' },
+    'parallel':  { icon: '🔗', label: '并行策略' },
+    'deepseek':  { icon: '🔮', label: 'DeepSeek' },
+    'rl':        { icon: '🎮', label: '强化学习' },
+    'sglang':    { icon: '⚡', label: 'SGLang' },
+};
 
 function nameToTitle(filename) {
-    return filename.replace(/\.(md|html)$/i, '')
-        .replace(/[-_]/g, ' ')
-        .replace(/和/g, ' & ');
+    return filename.replace(/\.(md|html)$/i, '').replace(/[-_]/g, ' ');
 }
 
 function buildCard(name, href, type) {
@@ -98,42 +122,122 @@ function buildCard(name, href, type) {
     </a>`;
 }
 
+function buildTopicSection(topic, files) {
+    const meta = TOPIC_META[topic] || { icon: '📁', label: topic };
+    return `<div class="section-title">${meta.icon} ${meta.label} <span class="count">${files.length}</span></div>
+        <div class="card-list">${files.map(f => buildCard(f.title, f.href, f.type)).join('')}</div>`;
+}
+
+// Fetch front matter category from raw MD content
+async function fetchCategory(filePath) {
+    try {
+        const res = await fetch(RAW_BASE + filePath);
+        if (!res.ok) return null;
+        const text = await res.text();
+        const m = text.match(/^---\n[\s\S]*?^category:\s*(.+?)$/m);
+        return m ? m[1].trim().toLowerCase() : null;
+    } catch { return null; }
+}
+
+// Tabs
+document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById('view-' + tab.dataset.view).classList.add('active');
+    });
+});
+
 async function render() {
     try {
-        const [mdFiles, h5Files] = await Promise.all([
-            fetchTree('md'),
-            fetchTree('h5')
-        ]);
+        // 1. Fetch tree
+        const treeRes = await fetch(`${API_BASE}?recursive=1`);
+        if (!treeRes.ok) throw new Error('API failed');
+        const treeData = await treeRes.json();
+        const allFiles = treeData.tree.filter(t => t.type === 'blob');
 
-        const mdList = document.getElementById('md-list');
-        const h5List = document.getElementById('h5-list');
-        const mdCount = document.getElementById('md-count');
-        const h5Count = document.getElementById('h5-count');
+        const mdFiles = allFiles.filter(t => t.path.startsWith('md/') && t.path.endsWith('.md'));
+        const h5Files = allFiles.filter(t => t.path.startsWith('h5/') && t.path.endsWith('.html'));
 
-        mdCount.textContent = mdFiles.length;
-        h5Count.textContent = h5Files.length;
-
-        if (mdFiles.length) {
-            mdList.innerHTML = mdFiles.map(f => {
+        // 2. Render "by type" view
+        document.getElementById('md-count').textContent = mdFiles.length;
+        document.getElementById('h5-count').textContent = h5Files.length;
+        document.getElementById('md-list').innerHTML = mdFiles.length
+            ? mdFiles.map(f => {
                 const name = f.path.replace('md/', '');
                 const href = f.path.replace(/\.md$/, '.html');
-                return buildCard(nameToTitle(name), href, 'md');
-            }).join('');
-        } else {
-            mdList.innerHTML = '<div class="empty">暂无 Markdown 文件</div>';
-        }
-
-        if (h5Files.length) {
-            h5List.innerHTML = h5Files.map(f => {
+                return buildCard(nameToTitle(name), '/' + href, 'md');
+            }).join('')
+            : '<div class="empty">暂无 Markdown 文件</div>';
+        document.getElementById('h5-list').innerHTML = h5Files.length
+            ? h5Files.map(f => {
                 const name = f.path.replace('h5/', '');
                 return buildCard(nameToTitle(name), '/' + f.path, 'h5');
-            }).join('');
-        } else {
-            h5List.innerHTML = '<div class="empty">暂无 HTML 文件</div>';
+            }).join('')
+            : '<div class="empty">暂无 HTML 文件</div>';
+
+        // 3. Build file entries for topic view
+        const entries = [];
+        for (const f of mdFiles) {
+            entries.push({
+                path: f.path,
+                name: f.path.replace('md/', ''),
+                href: '/' + f.path.replace(/\.md$/, '.html'),
+                title: nameToTitle(f.path.replace('md/', '')),
+                type: 'md',
+                category: null
+            });
         }
+        for (const f of h5Files) {
+            entries.push({
+                path: f.path,
+                name: f.path.replace('h5/', ''),
+                href: '/' + f.path,
+                title: nameToTitle(f.path.replace('h5/', '')),
+                type: 'h5',
+                category: null
+            });
+        }
+
+        // 4. Fetch categories from MD front matter (in parallel)
+        const categoryPromises = entries.filter(e => e.type === 'md').map(async (e) => {
+            e.category = await fetchCategory(e.path);
+        });
+        await Promise.all(categoryPromises);
+
+        // 5. Group by topic
+        const topics = {};
+        const uncategorized = [];
+        for (const e of entries) {
+            if (e.category && e.category !== 'none') {
+                if (!topics[e.category]) topics[e.category] = [];
+                topics[e.category].push(e);
+            } else {
+                uncategorized.push(e);
+            }
+        }
+
+        // Sort: known topics first (by TOPIC_META order), then uncategorized
+        const knownTopics = Object.keys(TOPIC_META).filter(t => topics[t]);
+        const otherTopics = Object.keys(topics).filter(t => !TOPIC_META[t]);
+        const orderedTopics = [...knownTopics, ...otherTopics];
+
+        let html = '';
+        for (const topic of orderedTopics) {
+            html += buildTopicSection(topic, topics[topic]);
+        }
+        if (uncategorized.length) {
+            html += buildTopicSection('other', uncategorized);
+        }
+        if (!html) html = '<div class="empty">暂无文件</div>';
+        document.getElementById('topic-content').innerHTML = html;
+
     } catch (e) {
-        document.getElementById('md-list').innerHTML = '<div class="empty">加载失败，请刷新重试</div>';
-        document.getElementById('h5-list').innerHTML = '<div class="empty">加载失败，请刷新重试</div>';
+        console.error(e);
+        document.getElementById('topic-content').innerHTML = '<div class="empty">加载失败，请刷新重试</div>';
+        document.getElementById('md-list').innerHTML = '<div class="empty">加载失败</div>';
+        document.getElementById('h5-list').innerHTML = '<div class="empty">加载失败</div>';
     }
 }
 

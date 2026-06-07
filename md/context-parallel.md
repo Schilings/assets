@@ -1,6 +1,7 @@
 ﻿---
 title: Hierarchical Context Parallel
 layout: default
+category: megatron
 ---
 ## HCP（Hierarchical Context Parallel）通讯组的分布与组合
 

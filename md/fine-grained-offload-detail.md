@@ -1,6 +1,7 @@
 ﻿---
 title: Fine-Grained Activation Offload
 layout: default
+category: megatron
 ---
 [任务规划完成]
 # `ChunkOffloadHandler` 类分析
