@@ -14,8 +14,6 @@
         .container { max-width: 780px; width: 100%; padding: 48px 24px; }
         h1 { font-size: 2rem; color: #f0f6fc; margin-bottom: 4px; }
         .subtitle { color: #8b949e; margin-bottom: 24px; font-size: .95rem; }
-
-        /* Tabs */
         .tabs { display: flex; gap: 0; margin-bottom: 24px; border-bottom: 1px solid #21262d; }
         .tab {
             padding: 10px 20px; cursor: pointer; font-size: .9rem; font-weight: 600;
@@ -24,8 +22,6 @@
         }
         .tab:hover { color: #c9d1d9; }
         .tab.active { color: #58a6ff; border-bottom-color: #58a6ff; }
-
-        /* Section */
         .section-title {
             color: #58a6ff; font-size: .85rem; font-weight: 600;
             text-transform: uppercase; letter-spacing: 1px;
@@ -37,8 +33,6 @@
             background: #1f6feb33; color: #58a6ff;
             font-size: .72rem; padding: 1px 7px; border-radius: 10px;
         }
-
-        /* Cards */
         .card-list { display: flex; flex-direction: column; gap: 10px; }
         .card {
             display: flex; align-items: center; gap: 14px;
@@ -51,10 +45,7 @@
         .card-icon { font-size: 1.2rem; flex-shrink: 0; }
         .card-body { flex: 1; min-width: 0; }
         .card-title { font-size: .95rem; font-weight: 600; color: #58a6ff; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .card-tag {
-            font-size: .68rem; padding: 2px 8px; border-radius: 10px;
-            font-weight: 600; text-transform: uppercase; flex-shrink: 0;
-        }
+        .card-tag { font-size: .68rem; padding: 2px 8px; border-radius: 10px; font-weight: 600; text-transform: uppercase; flex-shrink: 0; }
         .tag-html { background: #1f6feb22; color: #58a6ff; }
         .tag-md { background: #23863622; color: #3fb950; }
         .empty { color: #484f58; font-size: .88rem; padding: 12px 0; }
@@ -63,6 +54,8 @@
         .footer { margin-top: 40px; text-align: center; color: #484f58; font-size: .78rem; }
         .footer a { color: #8b949e; text-decoration: none; }
         .footer a:hover { color: #58a6ff; }
+        .howto { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px 20px; margin-bottom: 20px; font-size: .84rem; color: #8b949e; line-height: 1.7; }
+        .howto code { background: #1c2129; padding: 2px 6px; border-radius: 4px; color: #e6edf3; font-size: .82em; }
     </style>
 </head>
 <body>
@@ -75,169 +68,138 @@
             <button class="tab" data-view="type">按类型</button>
         </div>
 
-        <div class="view active" id="view-topic">
-            <div id="topic-content"><div class="empty">加载中...</div></div>
-        </div>
-        <div class="view" id="view-type">
-            <div class="section-title">Markdown <span class="count" id="md-count">-</span></div>
-            <div class="card-list" id="md-list"><div class="empty">加载中...</div></div>
-            <div class="section-title">HTML5 <span class="count" id="h5-count">-</span></div>
-            <div class="card-list" id="h5-list"><div class="empty">加载中...</div></div>
+        <div class="view active" id="view-topic"></div>
+        <div class="view" id="view-type"></div>
+
+        <div class="howto">
+            <strong style="color:#c9d1d9">使用方式：</strong><br>
+            <code>md/</code> 放 Markdown，<code>h5/</code> 放 HTML，push 即上线<br>
+            在 <code>md/</code> 或 <code>h5/</code> 下<strong>建文件夹 = 建分类</strong>，如 <code>md/megatron/</code> → 自动归类为 Megatron<br>
+            根目录下的文件归入"其他"
         </div>
 
         <div class="footer">
-            <a href="https://github.com/Schilings/assets">GitHub Repo</a> · 丢文件到 <code>md/</code> 或 <code>h5/</code> 即可 · MD 文件加 <code>category: xxx</code> front matter 自动归类
+            <a href="https://github.com/Schilings/assets">GitHub Repo</a>
         </div>
     </div>
 
 <script>
 const REPO = 'Schilings/assets';
 const BRANCH = 'master';
-const RAW_BASE = `https://raw.githubusercontent.com/${REPO}/${BRANCH}/`;
-const API_BASE = `https://api.github.com/repos/${REPO}/git/trees/${BRANCH}`;
+const API = `https://api.github.com/repos/${REPO}/git/trees/${BRANCH}?recursive=1`;
 
-// Topic icons & order
-const TOPIC_META = {
-    'megatron':  { icon: '🧠', label: 'Megatron' },
-    'vllm':      { icon: '🚀', label: 'vLLM' },
-    'operator':  { icon: '🧮', label: '算子' },
-    'parallel':  { icon: '🔗', label: '并行策略' },
-    'deepseek':  { icon: '🔮', label: 'DeepSeek' },
-    'rl':        { icon: '🎮', label: '强化学习' },
-    'sglang':    { icon: '⚡', label: 'SGLang' },
+const CATEGORY_ICONS = {
+    megatron: '🧠', vllm: '🚀', operator: '🧮', parallel: '🔗',
+    deepseek: '🔮', rl: '🎮', sglang: '⚡', knowledge: '📚',
+    other: '📁'
 };
 
-function nameToTitle(filename) {
-    return filename.replace(/\.(md|html)$/i, '').replace(/[-_]/g, ' ');
-}
+function nameToTitle(s) { return s.replace(/\.(md|html)$/i, '').replace(/[-_]/g, ' '); }
 
-function buildCard(name, href, type) {
+function card(name, href, type) {
     const icon = type === 'md' ? '📝' : '🌐';
-    const tagClass = type === 'md' ? 'tag-md' : 'tag-html';
-    const tagText = type === 'md' ? 'MD' : 'HTML';
-    return `<a class="card" href="${href}">
-        <span class="card-icon">${icon}</span>
-        <div class="card-body"><div class="card-title">${name}</div></div>
-        <span class="card-tag ${tagClass}">${tagText}</span>
-    </a>`;
+    const cls = type === 'md' ? 'tag-md' : 'tag-html';
+    const label = type === 'md' ? 'MD' : 'HTML';
+    return `<a class="card" href="${href}"><span class="card-icon">${icon}</span><div class="card-body"><div class="card-title">${name}</div></div><span class="card-tag ${cls}">${label}</span></a>`;
 }
 
-function buildTopicSection(topic, files) {
-    const meta = TOPIC_META[topic] || { icon: '📁', label: topic };
-    return `<div class="section-title">${meta.icon} ${meta.label} <span class="count">${files.length}</span></div>
-        <div class="card-list">${files.map(f => buildCard(f.title, f.href, f.type)).join('')}</div>`;
-}
-
-// Fetch front matter category from raw MD content
-async function fetchCategory(filePath) {
-    try {
-        const res = await fetch(RAW_BASE + filePath);
-        if (!res.ok) return null;
-        const text = await res.text();
-        const m = text.match(/^---\n[\s\S]*?^category:\s*(.+?)$/m);
-        return m ? m[1].trim().toLowerCase() : null;
-    } catch { return null; }
+function section(title, icon, items) {
+    if (!items.length) return '';
+    return `<div class="section-title">${icon} ${title} <span class="count">${items.length}</span></div><div class="card-list">${items.join('')}</div>`;
 }
 
 // Tabs
-document.querySelectorAll('.tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-        tab.classList.add('active');
-        document.getElementById('view-' + tab.dataset.view).classList.add('active');
-    });
-});
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById('view-' + t.dataset.view).classList.add('active');
+}));
 
 async function render() {
     try {
-        // 1. Fetch tree
-        const treeRes = await fetch(`${API_BASE}?recursive=1`);
-        if (!treeRes.ok) throw new Error('API failed');
-        const treeData = await treeRes.json();
-        const allFiles = treeData.tree.filter(t => t.type === 'blob');
+        const res = await fetch(API);
+        if (!res.ok) throw new Error('API');
+        const { tree } = await res.json();
 
-        const mdFiles = allFiles.filter(t => t.path.startsWith('md/') && t.path.endsWith('.md'));
-        const h5Files = allFiles.filter(t => t.path.startsWith('h5/') && t.path.endsWith('.html'));
+        const files = tree.filter(t => t.type === 'blob');
+        const mdFiles = files.filter(t => t.path.match(/^md\/.+\.md$/));
+        const h5Files = files.filter(t => t.path.match(/^h5\/.+\.html?$/));
 
-        // 2. Render "by type" view
-        document.getElementById('md-count').textContent = mdFiles.length;
-        document.getElementById('h5-count').textContent = h5Files.length;
-        document.getElementById('md-list').innerHTML = mdFiles.length
-            ? mdFiles.map(f => {
-                const name = f.path.replace('md/', '');
-                const href = f.path.replace(/\.md$/, '.html');
-                return buildCard(nameToTitle(name), '/' + href, 'md');
-            }).join('')
-            : '<div class="empty">暂无 Markdown 文件</div>';
-        document.getElementById('h5-list').innerHTML = h5Files.length
-            ? h5Files.map(f => {
-                const name = f.path.replace('h5/', '');
-                return buildCard(nameToTitle(name), '/' + f.path, 'h5');
-            }).join('')
-            : '<div class="empty">暂无 HTML 文件</div>';
+        // Parse: extract category from path (md/xxx/file.md → category=xxx, md/file.md → category=null)
+        function parsePath(p, prefix) {
+            const rel = p.slice(prefix.length + 1); // strip "md/" or "h5/"
+            const slashIdx = rel.indexOf('/');
+            if (slashIdx > 0) {
+                return { category: rel.slice(0, slashIdx), filename: rel.slice(slashIdx + 1), fullPath: p };
+            }
+            return { category: null, filename: rel, fullPath: p };
+        }
 
-        // 3. Build file entries for topic view
         const entries = [];
         for (const f of mdFiles) {
-            entries.push({
-                path: f.path,
-                name: f.path.replace('md/', ''),
-                href: '/' + f.path.replace(/\.md$/, '.html'),
-                title: nameToTitle(f.path.replace('md/', '')),
-                type: 'md',
-                category: null
-            });
+            const p = parsePath(f.path, 'md');
+            entries.push({ ...p, type: 'md', href: '/' + f.path.replace(/\.md$/, '.html'), title: nameToTitle(p.filename) });
         }
         for (const f of h5Files) {
-            entries.push({
-                path: f.path,
-                name: f.path.replace('h5/', ''),
-                href: '/' + f.path,
-                title: nameToTitle(f.path.replace('h5/', '')),
-                type: 'h5',
-                category: null
-            });
+            const p = parsePath(f.path, 'h5');
+            entries.push({ ...p, type: 'h5', href: '/' + f.path, title: nameToTitle(p.filename) });
         }
 
-        // 4. Fetch categories from MD front matter (in parallel)
-        const categoryPromises = entries.filter(e => e.type === 'md').map(async (e) => {
-            e.category = await fetchCategory(e.path);
-        });
-        await Promise.all(categoryPromises);
-
-        // 5. Group by topic
-        const topics = {};
+        // === By Topic ===
+        const groups = {};
         const uncategorized = [];
         for (const e of entries) {
-            if (e.category && e.category !== 'none') {
-                if (!topics[e.category]) topics[e.category] = [];
-                topics[e.category].push(e);
+            const cat = e.category || null;
+            if (cat) {
+                if (!groups[cat]) groups[cat] = [];
+                groups[cat].push(e);
             } else {
                 uncategorized.push(e);
             }
         }
 
-        // Sort: known topics first (by TOPIC_META order), then uncategorized
-        const knownTopics = Object.keys(TOPIC_META).filter(t => topics[t]);
-        const otherTopics = Object.keys(topics).filter(t => !TOPIC_META[t]);
-        const orderedTopics = [...knownTopics, ...otherTopics];
+        // Sort categories: known first, then alphabetical
+        const knownOrder = Object.keys(CATEGORY_ICONS);
+        const sortedCats = Object.keys(groups).sort((a, b) => {
+            const ai = knownOrder.indexOf(a), bi = knownOrder.indexOf(b);
+            if (ai >= 0 && bi >= 0) return ai - bi;
+            if (ai >= 0) return -1;
+            if (bi >= 0) return 1;
+            return a.localeCompare(b);
+        });
 
-        let html = '';
-        for (const topic of orderedTopics) {
-            html += buildTopicSection(topic, topics[topic]);
+        let topicHtml = '';
+        for (const cat of sortedCats) {
+            const icon = CATEGORY_ICONS[cat] || CATEGORY_ICONS.other;
+            const label = cat.charAt(0).toUpperCase() + cat.slice(1);
+            topicHtml += section(label, icon, groups[cat].map(e => card(e.title, e.href, e.type)));
         }
         if (uncategorized.length) {
-            html += buildTopicSection('other', uncategorized);
+            topicHtml += section('其他', CATEGORY_ICONS.other, uncategorized.map(e => card(e.title, e.href, e.type)));
         }
-        if (!html) html = '<div class="empty">暂无文件</div>';
-        document.getElementById('topic-content').innerHTML = html;
+        if (!topicHtml) topicHtml = '<div class="empty">暂无文件</div>';
+        document.getElementById('view-topic').innerHTML = topicHtml;
+
+        // === By Type ===
+        let typeHtml = '';
+        typeHtml += section('Markdown', '📝', mdFiles.map(f => {
+            const p = parsePath(f.path, 'md');
+            const display = p.category ? `${p.category}/${p.filename}` : p.filename;
+            return card(nameToTitle(display), '/' + f.path.replace(/\.md$/, '.html'), 'md');
+        }));
+        typeHtml += section('HTML5', '🌐', h5Files.map(f => {
+            const p = parsePath(f.path, 'h5');
+            const display = p.category ? `${p.category}/${p.filename}` : p.filename;
+            return card(nameToTitle(display), '/' + f.path, 'h5');
+        }));
+        if (!typeHtml) typeHtml = '<div class="empty">暂无文件</div>';
+        document.getElementById('view-type').innerHTML = typeHtml;
 
     } catch (e) {
         console.error(e);
-        document.getElementById('topic-content').innerHTML = '<div class="empty">加载失败，请刷新重试</div>';
-        document.getElementById('md-list').innerHTML = '<div class="empty">加载失败</div>';
-        document.getElementById('h5-list').innerHTML = '<div class="empty">加载失败</div>';
+        document.getElementById('view-topic').innerHTML = '<div class="empty">加载失败，请刷新重试</div>';
+        document.getElementById('view-type').innerHTML = '<div class="empty">加载失败，请刷新重试</div>';
     }
 }
 

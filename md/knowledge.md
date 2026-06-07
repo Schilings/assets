@@ -275,7 +275,7 @@ https://mp.weixin.qq.com/s/Elx7kRN09OsZ-dhKPC53mA
 
 ✅[大模型训练的高效内存解决方案：流水线感知的细粒度激活卸载，实现显存开销与吞吐性能的联合最优](https://mp.weixin.qq.com/s/-7YEig9nAte5DfDthn3oiQ?scene=1)
 
-🌟[Fine-Grained Offload HTML](/h5/fine-grained-offload.html) | [Fine-Grained Offload MD](/md/fine-grained-offload-detail.html)
+🌟[Fine-Grained Offload HTML](/h5/megatron/fine-grained-offload.html) | [Fine-Grained Offload MD](/md/megatron/fine-grained-offload-detail.html)
 
 
 
@@ -291,7 +291,7 @@ https://mp.weixin.qq.com/s/Elx7kRN09OsZ-dhKPC53mA
 
 #### 7. Sequence Parallel
 
-[SP 分析 HTML](/h5/sp-analysis.html)
+[SP 分析 HTML](/h5/megatron/sp-analysis.html)
 
 
 
@@ -432,9 +432,9 @@ https://mp.weixin.qq.com/s/Elx7kRN09OsZ-dhKPC53mA
 
 💗[LLM推理优化-vLLM SP并行](https://mp.weixin.qq.com/s/dztAI5PciugDzD2yv8a2_g)
 
-💗[LLM推理优化-vLLM Async TP](/h5/sp.html)
+💗[LLM推理优化-vLLM Async TP](/h5/vllm/sp.html)
 
-💗[vLLM Async SP — Symmetric Memory 深度解析](/h5/async-sp-symm-mem.html)
+💗[vLLM Async SP — Symmetric Memory 深度解析](/h5/vllm/async-sp-symm-mem.html)
 
 ✅[vllm并行策略之DCP(Decode Context Parallel)](https://zhuanlan.zhihu.com/p/2020086868914499979?share_code=qFykZcphGY0L&utm_psn=2027673704973214084)
 

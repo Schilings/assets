@@ -1464,7 +1464,7 @@ Async Wo-Split Ulysses + Async SP（Reduce Scatter FWD + All Gather Backward）
 
 ### Fine-grained Offload
 
-🌟[Fine-Grained Offload HTML](/h5/fine-grained-offload.html) | [Fine-Grained Offload MD](/md/fine-grained-offload-detail.html)
+🌟[Fine-Grained Offload HTML](/h5/megatron/fine-grained-offload.html) | [Fine-Grained Offload MD](/md/megatron/fine-grained-offload-detail.html)
 
 
 
