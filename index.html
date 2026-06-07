@@ -44,7 +44,7 @@
         .card:hover { border-color: #58a6ff; background: #1c2129; }
         .card-icon { font-size: 1.2rem; flex-shrink: 0; }
         .card-body { flex: 1; min-width: 0; }
-        .card-title { font-size: .95rem; font-weight: 600; color: #58a6ff; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .card-title { font-size: .95rem; font-weight: 600; color: #58a6ff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .card-tag { font-size: .68rem; padding: 2px 8px; border-radius: 10px; font-weight: 600; text-transform: uppercase; flex-shrink: 0; }
         .tag-html { background: #1f6feb22; color: #58a6ff; }
         .tag-md { background: #23863622; color: #3fb950; }
@@ -54,7 +54,7 @@
         .footer { margin-top: 40px; text-align: center; color: #484f58; font-size: .78rem; }
         .footer a { color: #8b949e; text-decoration: none; }
         .footer a:hover { color: #58a6ff; }
-        .howto { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px 20px; margin-bottom: 20px; font-size: .84rem; color: #8b949e; line-height: 1.7; }
+        .howto { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 14px 20px; margin-bottom: 20px; font-size: .84rem; color: #8b949e; line-height: 1.7; }
         .howto code { background: #1c2129; padding: 2px 6px; border-radius: 4px; color: #e6edf3; font-size: .82em; }
     </style>
 </head>
@@ -72,137 +72,79 @@
         <div class="view" id="view-type"></div>
 
         <div class="howto">
-            <strong style="color:#c9d1d9">使用方式：</strong><br>
-            <code>md/</code> 放 Markdown，<code>h5/</code> 放 HTML，push 即上线<br>
-            在 <code>md/</code> 或 <code>h5/</code> 下<strong>建文件夹 = 建分类</strong>，如 <code>md/megatron/</code> → 自动归类为 Megatron<br>
-            根目录下的文件归入"其他"
+            <strong style="color:#c9d1d9">使用方式：</strong>在 <code>pages/</code> 下建文件夹 = 建分类，丢 <code>.md</code> 或 <code>.html</code> 文件进去，push 即上线。如 <code>pages/megatron/xxx.md</code> → 自动归类为 Megatron。
         </div>
 
-        <div class="footer">
-            <a href="https://github.com/Schilings/assets">GitHub Repo</a>
-        </div>
+        <div class="footer"><a href="https://github.com/Schilings/assets">GitHub Repo</a></div>
     </div>
 
 <script>
 const REPO = 'Schilings/assets';
-const BRANCH = 'master';
-const API = `https://api.github.com/repos/${REPO}/git/trees/${BRANCH}?recursive=1`;
+const API = `https://api.github.com/repos/${REPO}/git/trees/master?recursive=1`;
 
-const CATEGORY_ICONS = {
-    megatron: '🧠', vllm: '🚀', operator: '🧮', parallel: '🔗',
-    deepseek: '🔮', rl: '🎮', sglang: '⚡', knowledge: '📚',
-    other: '📁'
-};
+const ICONS = { megatron:'🧠', vllm:'🚀', operator:'🧮', parallel:'🔗', deepseek:'🔮', rl:'🎮', sglang:'⚡', knowledge:'📚' };
 
-function nameToTitle(s) { return s.replace(/\.(md|html)$/i, '').replace(/[-_]/g, ' '); }
+function title(s) { return s.replace(/\.(md|html)$/i,'').replace(/[-_]/g,' '); }
 
 function card(name, href, type) {
-    const icon = type === 'md' ? '📝' : '🌐';
-    const cls = type === 'md' ? 'tag-md' : 'tag-html';
-    const label = type === 'md' ? 'MD' : 'HTML';
+    const icon = type==='md'?'📝':'🌐', cls = type==='md'?'tag-md':'tag-html', label = type==='md'?'MD':'HTML';
     return `<a class="card" href="${href}"><span class="card-icon">${icon}</span><div class="card-body"><div class="card-title">${name}</div></div><span class="card-tag ${cls}">${label}</span></a>`;
 }
 
 function section(title, icon, items) {
-    if (!items.length) return '';
-    return `<div class="section-title">${icon} ${title} <span class="count">${items.length}</span></div><div class="card-list">${items.join('')}</div>`;
+    return items.length ? `<div class="section-title">${icon} ${title} <span class="count">${items.length}</span></div><div class="card-list">${items.join('')}</div>` : '';
 }
 
-// Tabs
 document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
     document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
     document.querySelectorAll('.view').forEach(x => x.classList.remove('active'));
     t.classList.add('active');
-    document.getElementById('view-' + t.dataset.view).classList.add('active');
+    document.getElementById('view-'+t.dataset.view).classList.add('active');
 }));
 
 async function render() {
     try {
         const res = await fetch(API);
-        if (!res.ok) throw new Error('API');
+        if (!res.ok) throw 0;
         const { tree } = await res.json();
 
-        const files = tree.filter(t => t.type === 'blob');
-        const mdFiles = files.filter(t => t.path.match(/^md\/.+\.md$/));
-        const h5Files = files.filter(t => t.path.match(/^h5\/.+\.html?$/));
-
-        // Parse: extract category from path (md/xxx/file.md → category=xxx, md/file.md → category=null)
-        function parsePath(p, prefix) {
-            const rel = p.slice(prefix.length + 1); // strip "md/" or "h5/"
-            const slashIdx = rel.indexOf('/');
-            if (slashIdx > 0) {
-                return { category: rel.slice(0, slashIdx), filename: rel.slice(slashIdx + 1), fullPath: p };
-            }
-            return { category: null, filename: rel, fullPath: p };
-        }
-
-        const entries = [];
-        for (const f of mdFiles) {
-            const p = parsePath(f.path, 'md');
-            entries.push({ ...p, type: 'md', href: '/' + f.path.replace(/\.md$/, '.html'), title: nameToTitle(p.filename) });
-        }
-        for (const f of h5Files) {
-            const p = parsePath(f.path, 'h5');
-            entries.push({ ...p, type: 'h5', href: '/' + f.path, title: nameToTitle(p.filename) });
-        }
+        // Collect all content files under pages/
+        const entries = tree
+            .filter(t => t.type==='blob' && t.path.startsWith('pages/') && /\.(md|html?)$/i.test(t.path))
+            .map(t => {
+                const rel = t.path.slice(6); // strip "pages/"
+                const slash = rel.indexOf('/');
+                const cat = slash > 0 ? rel.slice(0, slash) : null;
+                const filename = slash > 0 ? rel.slice(slash+1) : rel;
+                const type = /\.md$/i.test(filename) ? 'md' : 'h5';
+                const href = type === 'md'
+                    ? '/' + t.path.replace(/\.md$/, '.html')
+                    : '/' + t.path;
+                return { cat, filename, type, href, title: title(filename) };
+            });
 
         // === By Topic ===
         const groups = {};
-        const uncategorized = [];
-        for (const e of entries) {
-            const cat = e.category || null;
-            if (cat) {
-                if (!groups[cat]) groups[cat] = [];
-                groups[cat].push(e);
-            } else {
-                uncategorized.push(e);
-            }
-        }
-
-        // Sort categories: known first, then alphabetical
-        const knownOrder = Object.keys(CATEGORY_ICONS);
-        const sortedCats = Object.keys(groups).sort((a, b) => {
-            const ai = knownOrder.indexOf(a), bi = knownOrder.indexOf(b);
-            if (ai >= 0 && bi >= 0) return ai - bi;
-            if (ai >= 0) return -1;
-            if (bi >= 0) return 1;
-            return a.localeCompare(b);
+        const uncats = [];
+        entries.forEach(e => { if (e.cat) { (groups[e.cat] ||= []).push(e); } else { uncats.push(e); } });
+        const known = Object.keys(ICONS);
+        const sorted = Object.keys(groups).sort((a,b) => {
+            const ai=known.indexOf(a), bi=known.indexOf(b);
+            return (ai>=0?ai:99+a)-(bi>=0?bi:99+b);
         });
-
-        let topicHtml = '';
-        for (const cat of sortedCats) {
-            const icon = CATEGORY_ICONS[cat] || CATEGORY_ICONS.other;
-            const label = cat.charAt(0).toUpperCase() + cat.slice(1);
-            topicHtml += section(label, icon, groups[cat].map(e => card(e.title, e.href, e.type)));
-        }
-        if (uncategorized.length) {
-            topicHtml += section('其他', CATEGORY_ICONS.other, uncategorized.map(e => card(e.title, e.href, e.type)));
-        }
-        if (!topicHtml) topicHtml = '<div class="empty">暂无文件</div>';
-        document.getElementById('view-topic').innerHTML = topicHtml;
+        let topicHtml = sorted.map(c => section(c.charAt(0).toUpperCase()+c.slice(1), ICONS[c]||'📁', groups[c].map(e=>card(e.title,e.href,e.type)))).join('');
+        if (uncats.length) topicHtml += section('其他','📁', uncats.map(e=>card(e.title,e.href,e.type)));
+        document.getElementById('view-topic').innerHTML = topicHtml || '<div class="empty">暂无文件</div>';
 
         // === By Type ===
-        let typeHtml = '';
-        typeHtml += section('Markdown', '📝', mdFiles.map(f => {
-            const p = parsePath(f.path, 'md');
-            const display = p.category ? `${p.category}/${p.filename}` : p.filename;
-            return card(nameToTitle(display), '/' + f.path.replace(/\.md$/, '.html'), 'md');
-        }));
-        typeHtml += section('HTML5', '🌐', h5Files.map(f => {
-            const p = parsePath(f.path, 'h5');
-            const display = p.category ? `${p.category}/${p.filename}` : p.filename;
-            return card(nameToTitle(display), '/' + f.path, 'h5');
-        }));
-        if (!typeHtml) typeHtml = '<div class="empty">暂无文件</div>';
-        document.getElementById('view-type').innerHTML = typeHtml;
-
-    } catch (e) {
-        console.error(e);
-        document.getElementById('view-topic').innerHTML = '<div class="empty">加载失败，请刷新重试</div>';
-        document.getElementById('view-type').innerHTML = '<div class="empty">加载失败，请刷新重试</div>';
+        const mds = entries.filter(e=>e.type==='md'), h5s = entries.filter(e=>e.type==='h5');
+        document.getElementById('view-type').innerHTML =
+            section('Markdown','📝', mds.map(e=>card((e.cat?e.cat+'/':'')+e.title, e.href, 'md'))) +
+            section('HTML5','🌐', h5s.map(e=>card((e.cat?e.cat+'/':'')+e.title, e.href, 'h5')));
+    } catch {
+        document.getElementById('view-topic').innerHTML = '<div class="empty">加载失败</div>';
     }
 }
-
 render();
 </script>
 </body>
