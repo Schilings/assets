@@ -4,7 +4,6 @@ layout: default
 category: operator
 ---
 # BF16 GEMM-RS 两阶段算子详解
-{% raw %}
 
 > 面向 Blackwell (SM100) 架构的 BF16 GEMM + Reduce-Scatter 融合算子  
 > 采用两阶段分离架构：GEMM+Push kernel + Reduce Epilogue kernel（通过 PDL 串联）
@@ -1578,4 +1577,3 @@ static GemmRSConfig get_gemm_rs_config(const int& m, const int& n, const int& k,
 | **st_rel_sys** | Release 语义的 system-scope store，保证前面的所有 store 对其他 GPU 可见 |
 | **Ready Flag** | 标记某个 tile 的 partial GEMM 结果已写入 workspace 的标志位 |
 | **Rank Wave** | GEMM-RS 的调度策略：按目标 rank 分波，先算远程 rank 的 tile 以尽早启动通信 |
-{% endraw %}
