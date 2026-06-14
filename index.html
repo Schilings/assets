@@ -22,13 +22,29 @@
         }
         .tab:hover { color: #c9d1d9; }
         .tab.active { color: #58a6ff; border-bottom-color: #58a6ff; }
+        .toolbar { display: flex; gap: 8px; margin-bottom: 16px; }
+        .toolbar button {
+            background: #21262d; color: #8b949e; border: 1px solid #30363d;
+            padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: .78rem;
+            transition: all .15s;
+        }
+        .toolbar button:hover { color: #c9d1d9; border-color: #58a6ff; }
         .section-title {
             color: #58a6ff; font-size: .85rem; font-weight: 600;
             text-transform: uppercase; letter-spacing: 1px;
             margin: 24px 0 12px; padding-bottom: 6px;
             border-bottom: 1px solid #21262d;
             display: flex; align-items: center; gap: 8px;
+            cursor: pointer; user-select: none;
         }
+        .section-title:hover { color: #79c0ff; }
+        .section-title .arrow {
+            font-size: .7rem; transition: transform .2s; margin-left: auto;
+            color: #484f58;
+        }
+        .section-group.collapsed .arrow { transform: rotate(-90deg); }
+        .section-group.collapsed .card-list { display: none; }
+        .section-group.collapsed .section-title { border-bottom: none; margin-bottom: 8px; }
         .section-title .count {
             background: #1f6feb33; color: #58a6ff;
             font-size: .72rem; padding: 1px 7px; border-radius: 10px;
@@ -68,6 +84,10 @@
             <button class="tab" data-view="type">按类型</button>
         </div>
 
+        <div class="toolbar">
+            <button id="btn-expand">展开全部</button>
+            <button id="btn-collapse">收起全部</button>
+        </div>
         <div class="view active" id="view-topic"></div>
         <div class="view" id="view-type"></div>
 
@@ -93,7 +113,7 @@ function card(name, href, type) {
 }
 
 function section(title, icon, items) {
-    return items.length ? `<div class="section-title">${icon} ${title} <span class="count">${items.length}</span></div><div class="card-list">${items.join('')}</div>` : '';
+    return items.length ? `<div class="section-group"><div class="section-title">${icon} ${title} <span class="count">${items.length}</span><span class="arrow">▼</span></div><div class="card-list">${items.join('')}</div></div>` : '';
 }
 
 document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
@@ -101,7 +121,31 @@ document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () =>
     document.querySelectorAll('.view').forEach(x => x.classList.remove('active'));
     t.classList.add('active');
     document.getElementById('view-'+t.dataset.view).classList.add('active');
+    syncToolbar();
 }));
+
+// Section collapse/expand toggle via event delegation
+document.addEventListener('click', e => {
+    const hdr = e.target.closest('.section-title');
+    if (hdr) { hdr.parentElement.classList.toggle('collapsed'); }
+});
+
+// Expand/Collapse all
+document.getElementById('btn-expand').addEventListener('click', () => {
+    document.querySelectorAll('.section-group.collapsed').forEach(g => g.classList.remove('collapsed'));
+});
+document.getElementById('btn-collapse').addEventListener('click', () => {
+    document.querySelectorAll('.section-group').forEach(g => g.classList.add('collapsed'));
+});
+
+function syncToolbar() {
+    setTimeout(() => {
+        const list = document.querySelectorAll('.view.active .section-group');
+        const show = list.length > 1;
+        document.getElementById('btn-expand').style.display = show ? '' : 'none';
+        document.getElementById('btn-collapse').style.display = show ? '' : 'none';
+    }, 0);
+}
 
 async function render() {
     try {
@@ -145,6 +189,7 @@ async function render() {
     } catch {
         document.getElementById('view-topic').innerHTML = '<div class="empty">加载失败</div>';
     }
+    syncToolbar();
 }
 render();
 </script>
