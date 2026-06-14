@@ -64,7 +64,7 @@
         .card.starred { border-color: #d2992266; background: #1a1714; }
         .card.starred:hover { border-color: #d29922; }
         .card-star {
-            flex-shrink: 0; font-size: 1.1rem; cursor: pointer;
+            flex-shrink: 0; font-size: 1.2rem; cursor: pointer;
             color: #484f58; transition: color .15s, transform .15s;
             user-select: none; line-height: 1; padding: 4px 2px;
         }
@@ -139,9 +139,9 @@ function card(entry) {
     const icon = entry.type==='md'?'📝':'🌐';
     const cls = entry.type==='md'?'tag-md':'tag-html';
     const label = entry.type==='md'?'MD':'HTML';
-    const starred = isStarred(entry.path) ? ' active' : '';
-    return `<a class="card${isStarred(entry.path)?' starred':''}" href="${entry.href}" data-path="${entry.path}">
-        <span class="card-star${starred}" data-path="${entry.path}">⭐</span>
+    const starred = isStarred(entry.path);
+    return `<a class="card${starred?' starred':''}" href="${entry.href}" data-path="${entry.path}">
+        <span class="card-star${starred?' active':''}" data-path="${entry.path}">${starred?'★':'☆'}</span>
         <span class="card-icon">${icon}</span>
         <div class="card-body"><div class="card-title">${entry.title}</div></div>
         <span class="card-tag ${cls}">${label}</span>
@@ -163,9 +163,12 @@ document.addEventListener('click', e => {
         // Update UI in both views
         const isNow = isStarred(path);
         star.classList.toggle('active', isNow);
+        star.textContent = isNow ? '★' : '☆';
         document.querySelectorAll(`.card[data-path="${CSS.escape(path)}"]`).forEach(c => {
             c.classList.toggle('starred', isNow);
-            c.querySelector('.card-star').classList.toggle('active', isNow);
+            const s = c.querySelector('.card-star');
+            s.classList.toggle('active', isNow);
+            s.textContent = isNow ? '★' : '☆';
         });
         updateStarCounts();
     }
