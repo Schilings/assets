@@ -1,9 +1,13 @@
+---
+layout: null
+---
+
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Schilings's Knowledge Base</title>
+    <title>{{ site.title }}</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -14,66 +18,19 @@
         .container { max-width: 780px; width: 100%; padding: 48px 24px; }
         h1 { font-size: 2rem; color: #f0f6fc; margin-bottom: 4px; }
         .subtitle { color: #8b949e; margin-bottom: 24px; font-size: .95rem; }
-        .tabs { display: flex; gap: 0; margin-bottom: 16px; border-bottom: 1px solid #21262d; }
-        .tab {
-            padding: 10px 20px; cursor: pointer; font-size: .9rem; font-weight: 600;
-            color: #8b949e; border-bottom: 2px solid transparent; transition: all .15s;
-            user-select: none; background: none; border-top: none; border-left: none; border-right: none;
-        }
+        .tabs { display: flex; gap: 0; margin-bottom: 24px; border-bottom: 1px solid #21262d; }
+        .tab { padding: 10px 20px; cursor: pointer; font-size: .9rem; font-weight: 600; color: #8b949e; border-bottom: 2px solid transparent; transition: all .15s; user-select: none; background: none; border-top: none; border-left: none; border-right: none; }
         .tab:hover { color: #c9d1d9; }
         .tab.active { color: #58a6ff; border-bottom-color: #58a6ff; }
-        .toolbar { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
-        .toolbar button {
-            background: #21262d; color: #8b949e; border: 1px solid #30363d;
-            padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: .78rem;
-            transition: all .15s;
-        }
-        .toolbar button:hover { color: #c9d1d9; border-color: #58a6ff; }
-        .toolbar button.active { background: #1f6feb33; color: #58a6ff; border-color: #1f6feb66; }
-        .toolbar .divider { width: 1px; height: 20px; background: #30363d; margin: 0 4px; }
-        .section-title {
-            color: #58a6ff; font-size: .85rem; font-weight: 600;
-            text-transform: uppercase; letter-spacing: 1px;
-            margin: 24px 0 12px; padding-bottom: 6px;
-            border-bottom: 1px solid #21262d;
-            display: flex; align-items: center; gap: 8px;
-            cursor: pointer; user-select: none;
-        }
-        .section-title:hover { color: #79c0ff; }
-        .section-title .arrow {
-            font-size: .7rem; transition: transform .2s; margin-left: auto;
-            color: #484f58;
-        }
-        .section-group.collapsed .arrow { transform: rotate(-90deg); }
-        .section-group.collapsed .card-list { display: none; }
-        .section-group.collapsed .section-title { border-bottom: none; margin-bottom: 8px; }
-        .section-title .count {
-            background: #1f6feb33; color: #58a6ff;
-            font-size: .72rem; padding: 1px 7px; border-radius: 10px;
-        }
+        .section-title { color: #58a6ff; font-size: .85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin: 24px 0 12px; padding-bottom: 6px; border-bottom: 1px solid #21262d; display: flex; align-items: center; gap: 8px; }
+        .section-title .count { background: #1f6feb33; color: #58a6ff; font-size: .72rem; padding: 1px 7px; border-radius: 10px; }
         .card-list { display: flex; flex-direction: column; gap: 10px; }
-        .card {
-            display: flex; align-items: center; gap: 10px;
-            background: #161b22; border: 1px solid #30363d;
-            border-radius: 8px; padding: 12px 16px;
-            text-decoration: none; color: #c9d1d9;
-            transition: border-color .2s, background .2s;
-            position: relative;
-        }
+        .card { display: flex; align-items: center; gap: 14px; background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 14px 20px; text-decoration: none; color: #c9d1d9; transition: border-color .2s, background .2s; }
         .card:hover { border-color: #58a6ff; background: #1c2129; }
-        .card.starred { border-color: #d2992266; background: #1a1714; }
-        .card.starred:hover { border-color: #d29922; }
-        .card-star {
-            flex-shrink: 0; font-size: 1.2rem; cursor: pointer;
-            color: #484f58; transition: color .15s, transform .15s;
-            user-select: none; line-height: 1; padding: 4px 2px;
-        }
-        .card-star:hover { color: #d29922; transform: scale(1.2); }
-        .card-star.active { color: #d29922; }
-        .card-icon { font-size: 1.1rem; flex-shrink: 0; }
+        .card-icon { font-size: 1.2rem; flex-shrink: 0; }
         .card-body { flex: 1; min-width: 0; }
-        .card-title { font-size: .9rem; font-weight: 600; color: #58a6ff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .card-tag { font-size: .66rem; padding: 1px 7px; border-radius: 10px; font-weight: 600; text-transform: uppercase; flex-shrink: 0; }
+        .card-title { font-size: .95rem; font-weight: 600; color: #58a6ff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .card-tag { font-size: .68rem; padding: 2px 8px; border-radius: 10px; font-weight: 600; text-transform: uppercase; flex-shrink: 0; }
         .tag-html { background: #1f6feb22; color: #58a6ff; }
         .tag-md { background: #23863622; color: #3fb950; }
         .empty { color: #484f58; font-size: .88rem; padding: 12px 0; }
@@ -96,209 +53,116 @@
             <button class="tab" data-view="type">按类型</button>
         </div>
 
-        <div class="toolbar">
-            <button id="btn-star-sort" title="星标优先">⭐ 星标优先</button>
-            <span class="divider"></span>
-            <button id="btn-expand">展开全部</button>
-            <button id="btn-collapse">收起全部</button>
+        <div class="view active" id="view-topic">
+{% assign cats = "" | split: "" %}
+{% assign uncat = "" | split: "" %}
+{% for f in site.static_files %}
+  {% if f.path contains '/pages/' and f.extname == '.html' %}
+    {% assign rel = f.path | remove_first: '/pages/' %}
+    {% assign parts = rel | split: '/' %}
+    {% if parts.size == 1 %}
+      {% assign uncat = uncat | push: f %}
+    {% else %}
+      {% assign cat = parts[0] %}
+      {% assign list = cats | where: "name", cat %}
+      {% if list.size == 0 %}
+        {% assign newcat = "" | split: "" | push: cat %}
+        {% assign newfiles = "" | split: "" | push: f %}
+        {% assign entry = newcat | concat: newfiles %}
+        {% assign cats = cats | push: entry %}
+      {% else %}
+        {% for entry in cats %}
+          {% if entry[0] == cat %}
+            {% assign entry = entry | push: f %}
+          {% endif %}
+        {% endfor %}
+      {% endif %}
+    {% endif %}
+  {% endif %}
+{% endfor %}
+{% for p in site.pages %}
+  {% if p.path contains 'pages/' and p.extname == '.md' %}
+    {% assign rel = p.path | remove_first: 'pages/' %}
+    {% assign parts = rel | split: '/' %}
+    {% if parts.size == 1 %}
+      {% assign uncat = uncat | push: p %}
+    {% else %}
+      {% assign cat = parts[0] %}
+      {% assign found = false %}
+      {% for entry in cats %}
+        {% if entry[0] == cat %}
+          {% assign entry = entry | push: p %}
+          {% assign found = true %}
+        {% endif %}
+      {% endfor %}
+      {% if found == false %}
+        {% assign newfiles = "" | split: "" | push: p %}
+        {% assign entry = cat | concat: newfiles %}
+        {% assign cats = cats | push: entry %}
+      {% endif %}
+    {% endif %}
+  {% endif %}
+{% endfor %}
+{% comment %}Simple approach: hardcode categories based on known dirs{% endcomment %}
+{% assign topic_map = "megatron:🧠,vllm:🚀,operator:🧮,deepseek:🔮,sglang:⚡,knowledge:📚" | split: "," %}
+{% assign icons = "" | split: "" %}
+{% for t in topic_map %}{% assign kv = t | split: ":" %}{% assign icons = icons | push: kv[1] %}{% endfor %}
+
+{% assign known_dirs = "megatron,vllm,operator,deepseek,sglang,knowledge" | split: "," %}
+{% assign known_icons = "🧠,🚀,🧮,🔮,⚡,📚" | split: "," %}
+
+{% comment %}Collect files by directory{% endcomment %}
+{% for dir in known_dirs %}
+  {% assign files = "" | split: "" %}
+  {% for f in site.static_files %}
+    {% if f.path contains '/pages/' and f.path contains dir and f.extname == '.html' %}
+      {% assign files = files | push: f %}
+    {% endif %}
+  {% endfor %}
+  {% for p in site.pages %}
+    {% if p.path contains 'pages/' and p.path contains dir and p.extname == '.md' %}
+      {% assign files = files | push: p %}
+    {% endif %}
+  {% endfor %}
+  {% assign file_count = files | size %}{% if file_count > 0 %}
+  <div class="section-title">{{ known_icons[forloop.index0] }} {{ dir | capitalize }} <span class="count">{{ file_count }}</span></div>
+  <div class="card-list">{% for f in files %}{% assign href = f.path %}{% assign name = f.name %}{% assign ext = f.extname %}{% if ext == '.md' %}{% assign href = href | replace: '.md', '.html' %}{% endif %}{% assign is_md = false %}{% if ext == '.md' %}{% assign is_md = true %}{% endif %}{% assign title = name | replace: ext, '' | replace: '-', ' ' | replace: '_', ' ' %}{% assign icon = '🌐' %}{% assign tag = 'HTML' %}{% assign cls = 'tag-html' %}{% if is_md %}{% assign icon = '📝' %}{% assign tag = 'MD' %}{% assign cls = 'tag-md' %}{% endif %}
+    <a class="card" href="{{ href | relative_url }}"><span class="card-icon">{{ icon }}</span><div class="card-body"><div class="card-title">{{ title }}</div></div><span class="card-tag {{ cls }}">{{ tag }}</span></a>{% endfor %}
+  </div>{% endif %}
+{% endfor %}
+
+{% assign uncat_count = uncat | size %}{% if uncat_count > 0 %}
+<div class="section-title">📁 其他 <span class="count">{{ uncat_count }}</span></div>
+<div class="card-list">{% for f in uncat %}{% assign href = f.path %}{% assign name = f.name %}{% assign ext = f.extname %}{% if ext == '.md' %}{% assign href = href | replace: '.md', '.html' %}{% endif %}{% assign is_md = false %}{% if ext == '.md' %}{% assign is_md = true %}{% endif %}{% assign title = name | replace: ext, '' | replace: '-', ' ' | replace: '_', ' ' %}{% assign icon = '🌐' %}{% assign tag = 'HTML' %}{% assign cls = 'tag-html' %}{% if is_md %}{% assign icon = '📝' %}{% assign tag = 'MD' %}{% assign cls = 'tag-md' %}{% endif %}
+    <a class="card" href="{{ href | relative_url }}"><span class="card-icon">{{ icon }}</span><div class="card-body"><div class="card-title">{{ title }}</div></div><span class="card-tag {{ cls }}">{{ tag }}</span></a>{% endfor %}
+</div>{% endif %}
         </div>
-        <div class="view active" id="view-topic"></div>
-        <div class="view" id="view-type"></div>
+
+        <div class="view" id="view-type">
+          <div class="section-title">Markdown <span class="count">{% assign mc = 0 %}{% for p in site.pages %}{% if p.path contains 'pages/' and p.extname == '.md' %}{% assign mc = mc | plus: 1 %}{% endif %}{% endfor %}{{ mc }}</span></div>
+          <div class="card-list">{% for p in site.pages %}{% if p.path contains 'pages/' and p.extname == '.md' %}{% assign href = p.path | replace: '.md', '.html' %}{% assign title = p.name | replace: '.md', '' | replace: '-', ' ' | replace: '_', ' ' %}{% assign sub = p.path | remove_first: 'pages/' %}{% assign slash = sub | split: '/' | first %}{% if slash != sub %}{% assign title = slash | append: '/' | append: title %}{% endif %}
+            <a class="card" href="{{ href | relative_url }}"><span class="card-icon">📝</span><div class="card-body"><div class="card-title">{{ title }}</div></div><span class="card-tag tag-md">MD</span></a>{% endif %}{% endfor %}
+          </div>
+          <div class="section-title">HTML5 <span class="count">{% assign hc = 0 %}{% for f in site.static_files %}{% if f.path contains 'pages/' and f.extname == '.html' %}{% assign hc = hc | plus: 1 %}{% endif %}{% endfor %}{{ hc }}</span></div>
+          <div class="card-list">{% for f in site.static_files %}{% if f.path contains 'pages/' and f.extname == '.html' %}{% assign title = f.name | replace: '.html', '' | replace: '-', ' ' | replace: '_', ' ' %}{% assign sub = f.path | remove_first: '/pages/' %}{% assign slash = sub | split: '/' | first %}{% if slash != sub %}{% assign title = slash | append: '/' | append: title %}{% endif %}
+            <a class="card" href="{{ f.path | relative_url }}"><span class="card-icon">🌐</span><div class="card-body"><div class="card-title">{{ title }}</div></div><span class="card-tag tag-html">HTML</span></a>{% endif %}{% endfor %}
+          </div>
+        </div>
 
         <div class="howto">
-            <strong style="color:#c9d1d9">使用方式：</strong>在 <code>pages/</code> 下建文件夹 = 建分类，丢 <code>.md</code> 或 <code>.html</code> 文件进去，push 即上线。点击卡片左侧 ⭐ 即可收藏，收藏的星标存储在浏览器中。
+            <strong style="color:#c9d1d9">使用方式：</strong>在 <code>pages/</code> 下建文件夹 = 建分类，丢 <code>.md</code> 或 <code>.html</code> 文件进去，push 即上线。
         </div>
 
         <div class="footer"><a href="https://github.com/Schilings/assets">GitHub Repo</a></div>
     </div>
 
 <script>
-const BASE = '/assets';
-const REPO = 'Schilings/assets';
-const API = `https://api.github.com/repos/${REPO}/git/trees/master?recursive=1`;
-const STARS_KEY = 'kb_stars';
-
-const ICONS = { megatron:'🧠', vllm:'🚀', operator:'🧮', parallel:'🔗', deepseek:'🔮', rl:'🎮', sglang:'⚡', knowledge:'📚' };
-
-// ---- Star state (localStorage) ----
-let starSet = new Set();
-try { starSet = new Set(JSON.parse(localStorage.getItem(STARS_KEY)) || []); } catch { starSet = new Set(); }
-function saveStars() { localStorage.setItem(STARS_KEY, JSON.stringify([...starSet])); }
-function toggleStar(path) {
-    if (starSet.has(path)) starSet.delete(path); else starSet.add(path);
-    saveStars();
-}
-function isStarred(path) { return starSet.has(path); }
-
-function cleanTitle(s) {
-    return s.replace(/\.(md|html)$/i,'').replace(/^[✔✅✓⭐]\s*/u,'').replace(/[-_]/g,' ');
-}
-function hasStarInName(s) { return /^[✔✅✓⭐]/u.test(s); }
-
-function card(entry) {
-    const icon = entry.type==='md'?'📝':'🌐';
-    const cls = entry.type==='md'?'tag-md':'tag-html';
-    const label = entry.type==='md'?'MD':'HTML';
-    const starred = isStarred(entry.path);
-    return `<a class="card${starred?' starred':''}" href="${entry.href}" data-path="${entry.path}">
-        <span class="card-star${starred?' active':''}" data-path="${entry.path}">${starred?'★':'☆'}</span>
-        <span class="card-icon">${icon}</span>
-        <div class="card-body"><div class="card-title">${entry.title}</div></div>
-        <span class="card-tag ${cls}">${label}</span>
-    </a>`;
-}
-
-function section(title, icon, items) {
-    return items.length ? `<div class="section-group"><div class="section-title">${icon} ${title} <span class="count">${items.length}</span><span class="arrow">▼</span></div><div class="card-list">${items.join('')}</div></div>` : '';
-}
-
-// ---- Star click handler (delegated) ----
-document.addEventListener('click', e => {
-    const star = e.target.closest('.card-star');
-    if (star) {
-        e.preventDefault();
-        e.stopPropagation();
-        const path = star.dataset.path;
-        toggleStar(path);
-        // Update UI in both views
-        const isNow = isStarred(path);
-        star.classList.toggle('active', isNow);
-        star.textContent = isNow ? '★' : '☆';
-        document.querySelectorAll(`.card[data-path="${CSS.escape(path)}"]`).forEach(c => {
-            c.classList.toggle('starred', isNow);
-            const s = c.querySelector('.card-star');
-            s.classList.toggle('active', isNow);
-            s.textContent = isNow ? '★' : '☆';
-        });
-        updateStarCounts();
-    }
-    // Section title collapse toggle
-    const hdr = e.target.closest('.section-title');
-    if (hdr && !e.target.closest('.card-star')) {
-        hdr.parentElement.classList.toggle('collapsed');
-    }
-});
-
-// ---- Star sort ----
-let starSort = false;
-document.getElementById('btn-star-sort').addEventListener('click', function() {
-    starSort = !starSort;
-    this.classList.toggle('active', starSort);
-    // Filter entries in each card-list
-    document.querySelectorAll('.card-list').forEach(list => {
-        const cards = [...list.children];
-        if (starSort) {
-            cards.sort((a,b) => {
-                const sa = a.classList.contains('starred') ? 1 : 0;
-                const sb = b.classList.contains('starred') ? 1 : 0;
-                return sb - sa || (a.querySelector('.card-title').textContent).localeCompare(b.querySelector('.card-title').textContent);
-            });
-        } else {
-            cards.sort((a,b) => (a.querySelector('.card-title').textContent).localeCompare(b.querySelector('.card-title').textContent));
-        }
-        cards.forEach(c => list.appendChild(c));
-    });
-});
-
-function updateStarCounts() {
-    document.querySelectorAll('.section-group').forEach(g => {
-        const count = g.querySelectorAll('.card.starred').length;
-        const countEl = g.querySelector('.count');
-        const total = g.querySelectorAll('.card').length;
-        if (countEl) countEl.textContent = count > 0 ? `${count}/${total}` : total;
-    });
-}
-
-// ---- Tabs ----
 document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
     document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
     document.querySelectorAll('.view').forEach(x => x.classList.remove('active'));
     t.classList.add('active');
     document.getElementById('view-'+t.dataset.view).classList.add('active');
-    // Reset sort state when switching tabs
-    starSort = false;
-    document.getElementById('btn-star-sort').classList.remove('active');
-    syncToolbar();
 }));
-
-// ---- Expand/Collapse all ----
-document.getElementById('btn-expand').addEventListener('click', () => {
-    document.querySelectorAll('.section-group.collapsed').forEach(g => g.classList.remove('collapsed'));
-});
-document.getElementById('btn-collapse').addEventListener('click', () => {
-    document.querySelectorAll('.section-group').forEach(g => g.classList.add('collapsed'));
-});
-
-function syncToolbar() {
-    setTimeout(() => {
-        const list = document.querySelectorAll('.view.active .section-group');
-        const show = list.length > 1;
-        document.getElementById('btn-expand').style.display = show ? '' : 'none';
-        document.getElementById('btn-collapse').style.display = show ? '' : 'none';
-    }, 0);
-}
-
-// ---- Main render ----
-async function render() {
-    try {
-        const res = await fetch(API);
-        if (!res.ok) throw 0;
-        const { tree } = await res.json();
-
-        const entries = tree
-            .filter(t => t.type==='blob' && t.path.startsWith('pages/') && /\.(md|html?)$/i.test(t.path))
-            .map(t => {
-                const rel = t.path.slice(6);
-                const slash = rel.indexOf('/');
-                const cat = slash > 0 ? rel.slice(0, slash) : null;
-                const filename = slash > 0 ? rel.slice(slash+1) : rel;
-                const type = /\.md$/i.test(filename) ? 'md' : 'h5';
-                const href = type === 'md'
-                    ? BASE + '/' + t.path.replace(/\.md$/, '.html')
-                    : BASE + '/' + t.path;
-
-                // Auto-star files with ✔️/✅/✓/⭐ in filename (first visit only)
-                const nameFlag = hasStarInName(filename);
-                if (nameFlag && !(STARS_KEY + '_init' in localStorage)) {
-                    starSet.add(t.path);
-                }
-
-                return { path: t.path, cat, filename, type, href, title: cleanTitle(filename) };
-            });
-
-        // Mark first-visit init done
-        localStorage.setItem(STARS_KEY + '_init', '1');
-        saveStars();
-
-        // === By Topic ===
-        const groups = {};
-        const uncats = [];
-        entries.forEach(e => { if (e.cat) { (groups[e.cat] ||= []).push(e); } else { uncats.push(e); } });
-        const known = Object.keys(ICONS);
-        const sorted = Object.keys(groups).sort((a,b) => {
-            const ai=known.indexOf(a), bi=known.indexOf(b);
-            return (ai>=0?ai:99+a)-(bi>=0?bi:99+b);
-        });
-        let topicHtml = sorted.map(c => {
-            const items = groups[c].sort((a,b) => a.title.localeCompare(b.title));
-            return section(c.charAt(0).toUpperCase()+c.slice(1), ICONS[c]||'📁', items.map(e=>card(e)));
-        }).join('');
-        if (uncats.length) topicHtml += section('其他','📁', uncats.sort((a,b)=>a.title.localeCompare(b.title)).map(e=>card(e)));
-        document.getElementById('view-topic').innerHTML = topicHtml || '<div class="empty">暂无文件</div>';
-
-        // === By Type ===
-        const mds = entries.filter(e=>e.type==='md'), h5s = entries.filter(e=>e.type==='h5');
-        document.getElementById('view-type').innerHTML =
-            section('Markdown','📝', mds.sort((a,b)=>a.title.localeCompare(b.title)).map(e=>card(e))) +
-            section('HTML5','🌐', h5s.sort((a,b)=>a.title.localeCompare(b.title)).map(e=>card(e)));
-
-        updateStarCounts();
-    } catch {
-        document.getElementById('view-topic').innerHTML = '<div class="empty">加载失败</div>';
-    }
-    syncToolbar();
-}
-render();
 </script>
 </body>
 </html>
