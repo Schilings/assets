@@ -19,13 +19,13 @@ layout: null
         h1 { font-size: 2rem; color: #f0f6fc; margin-bottom: 4px; }
         .subtitle { color: #8b949e; margin-bottom: 24px; font-size: .95rem; }
         .tabs { display: flex; gap: 0; margin-bottom: 24px; border-bottom: 1px solid #21262d; }
-        .tab { padding: 10px 20px; cursor: pointer; font-size: .9rem; font-weight: 600; color: #8b949e; border-bottom: 2px solid transparent; transition: all .15s; user-select: none; background: none; border-top: none; border-left: none; border-right: none; }
+        .tab { padding: 10px 20px; cursor: pointer; font-size: .9rem; font-weight: 600; color: #8b949e; border-bottom: 2px solid transparent; transition: all .15s; user-select: none; background: none; border: none; }
         .tab:hover { color: #c9d1d9; }
         .tab.active { color: #58a6ff; border-bottom-color: #58a6ff; }
         .section-title { color: #58a6ff; font-size: .85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin: 24px 0 12px; padding-bottom: 6px; border-bottom: 1px solid #21262d; display: flex; align-items: center; gap: 8px; }
         .section-title .count { background: #1f6feb33; color: #58a6ff; font-size: .72rem; padding: 1px 7px; border-radius: 10px; }
         .card-list { display: flex; flex-direction: column; gap: 10px; }
-        .card { display: flex; align-items: center; gap: 14px; background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 14px 20px; text-decoration: none; color: #c9d1d9; transition: border-color .2s, background .2s; }
+        .card { display: flex; align-items: center; gap: 14px; background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 14px 20px; text-decoration: none; color: #c9d1d9; transition: all .15s; }
         .card:hover { border-color: #58a6ff; background: #1c2129; }
         .card-icon { font-size: 1.2rem; flex-shrink: 0; }
         .card-body { flex: 1; min-width: 0; }
@@ -33,7 +33,6 @@ layout: null
         .card-tag { font-size: .68rem; padding: 2px 8px; border-radius: 10px; font-weight: 600; text-transform: uppercase; flex-shrink: 0; }
         .tag-html { background: #1f6feb22; color: #58a6ff; }
         .tag-md { background: #23863622; color: #3fb950; }
-        .empty { color: #484f58; font-size: .88rem; padding: 12px 0; }
         .view { display: none; }
         .view.active { display: block; }
         .footer { margin-top: 40px; text-align: center; color: #484f58; font-size: .78rem; }
@@ -54,105 +53,87 @@ layout: null
         </div>
 
         <div class="view active" id="view-topic">
-{% assign cats = "" | split: "" %}
-{% assign uncat = "" | split: "" %}
-{% for f in site.static_files %}
-  {% if f.path contains '/pages/' and f.extname == '.html' %}
-    {% assign rel = f.path | remove_first: '/pages/' %}
-    {% assign parts = rel | split: '/' %}
-    {% if parts.size == 1 %}
-      {% assign uncat = uncat | push: f %}
-    {% else %}
-      {% assign cat = parts[0] %}
-      {% assign list = cats | where: "name", cat %}
-      {% if list.size == 0 %}
-        {% assign newcat = "" | split: "" | push: cat %}
-        {% assign newfiles = "" | split: "" | push: f %}
-        {% assign entry = newcat | concat: newfiles %}
-        {% assign cats = cats | push: entry %}
-      {% else %}
-        {% for entry in cats %}
-          {% if entry[0] == cat %}
-            {% assign entry = entry | push: f %}
-          {% endif %}
-        {% endfor %}
-      {% endif %}
-    {% endif %}
-  {% endif %}
-{% endfor %}
-{% for p in site.pages %}
-  {% if p.path contains 'pages/' and p.extname == '.md' %}
-    {% assign rel = p.path | remove_first: 'pages/' %}
-    {% assign parts = rel | split: '/' %}
-    {% if parts.size == 1 %}
-      {% assign uncat = uncat | push: p %}
-    {% else %}
-      {% assign cat = parts[0] %}
-      {% assign found = false %}
-      {% for entry in cats %}
-        {% if entry[0] == cat %}
-          {% assign entry = entry | push: p %}
-          {% assign found = true %}
-        {% endif %}
-      {% endfor %}
-      {% if found == false %}
-        {% assign newfiles = "" | split: "" | push: p %}
-        {% assign entry = cat | concat: newfiles %}
-        {% assign cats = cats | push: entry %}
-      {% endif %}
-    {% endif %}
-  {% endif %}
-{% endfor %}
-{% comment %}Simple approach: hardcode categories based on known dirs{% endcomment %}
-{% assign topic_map = "megatron:🧠,vllm:🚀,operator:🧮,deepseek:🔮,sglang:⚡,knowledge:📚" | split: "," %}
-{% assign icons = "" | split: "" %}
-{% for t in topic_map %}{% assign kv = t | split: ":" %}{% assign icons = icons | push: kv[1] %}{% endfor %}
 
-{% assign known_dirs = "megatron,vllm,operator,deepseek,sglang,knowledge" | split: "," %}
-{% assign known_icons = "🧠,🚀,🧮,🔮,⚡,📚" | split: "," %}
+{% comment %}Helper: count files containing substring in path{% endcomment %}
 
-{% comment %}Collect files by directory{% endcomment %}
-{% for dir in known_dirs %}
-  {% assign files = "" | split: "" %}
-  {% for f in site.static_files %}
-    {% if f.path contains '/pages/' and f.path contains dir and f.extname == '.html' %}
-      {% assign files = files | push: f %}
-    {% endif %}
-  {% endfor %}
-  {% for p in site.pages %}
-    {% if p.path contains 'pages/' and p.path contains dir and p.extname == '.md' %}
-      {% assign files = files | push: p %}
-    {% endif %}
-  {% endfor %}
-  {% assign file_count = files | size %}{% if file_count > 0 %}
-  <div class="section-title">{{ known_icons[forloop.index0] }} {{ dir | capitalize }} <span class="count">{{ file_count }}</span></div>
-  <div class="card-list">{% for f in files %}{% assign href = f.path %}{% assign name = f.name %}{% assign ext = f.extname %}{% if ext == '.md' %}{% assign href = href | replace: '.md', '.html' %}{% endif %}{% assign is_md = false %}{% if ext == '.md' %}{% assign is_md = true %}{% endif %}{% assign title = name | replace: ext, '' | replace: '-', ' ' | replace: '_', ' ' %}{% assign icon = '🌐' %}{% assign tag = 'HTML' %}{% assign cls = 'tag-html' %}{% if is_md %}{% assign icon = '📝' %}{% assign tag = 'MD' %}{% assign cls = 'tag-md' %}{% endif %}
-    <a class="card" href="{{ href | relative_url }}"><span class="card-icon">{{ icon }}</span><div class="card-body"><div class="card-title">{{ title }}</div></div><span class="card-tag {{ cls }}">{{ tag }}</span></a>{% endfor %}
-  </div>{% endif %}
-{% endfor %}
+{% comment %}=== Megatron ==={% endcomment %}
+{% assign m_count = 0 %}{% for f in site.static_files %}{% if f.path contains '/pages/megatron/' and f.extname == '.html' %}{% assign m_count = m_count | plus: 1 %}{% endif %}{% endfor %}{% for p in site.pages %}{% if p.path contains 'pages/megatron/' and p.ext == '.md' %}{% assign m_count = m_count | plus: 1 %}{% endif %}{% endfor %}
+{% if m_count > 0 %}
+<div class="section-title">🧠 Megatron <span class="count">{{ m_count }}</span></div>
+<div class="card-list">
+{% for f in site.static_files %}{% if f.path contains '/pages/megatron/' and f.extname == '.html' %}{% assign t = f.basename | replace: '-', ' ' | replace: '_', ' ' %}<a class="card" href="{{ f.path | relative_url }}"><span class="card-icon">🌐</span><div class="card-body"><div class="card-title">{{ t }}</div></div><span class="card-tag tag-html">HTML</span></a>{% endif %}{% endfor %}
+{% for p in site.pages %}{% if p.path contains 'pages/megatron/' and p.ext == '.md' %}{% assign t = p.basename | replace: '-', ' ' | replace: '_', ' ' %}<a class="card" href="{{ p.url | relative_url }}"><span class="card-icon">📝</span><div class="card-body"><div class="card-title">{{ t }}</div></div><span class="card-tag tag-md">MD</span></a>{% endif %}{% endfor %}
+</div>
+{% endif %}
 
-{% assign uncat_count = uncat | size %}{% if uncat_count > 0 %}
-<div class="section-title">📁 其他 <span class="count">{{ uncat_count }}</span></div>
-<div class="card-list">{% for f in uncat %}{% assign href = f.path %}{% assign name = f.name %}{% assign ext = f.extname %}{% if ext == '.md' %}{% assign href = href | replace: '.md', '.html' %}{% endif %}{% assign is_md = false %}{% if ext == '.md' %}{% assign is_md = true %}{% endif %}{% assign title = name | replace: ext, '' | replace: '-', ' ' | replace: '_', ' ' %}{% assign icon = '🌐' %}{% assign tag = 'HTML' %}{% assign cls = 'tag-html' %}{% if is_md %}{% assign icon = '📝' %}{% assign tag = 'MD' %}{% assign cls = 'tag-md' %}{% endif %}
-    <a class="card" href="{{ href | relative_url }}"><span class="card-icon">{{ icon }}</span><div class="card-body"><div class="card-title">{{ title }}</div></div><span class="card-tag {{ cls }}">{{ tag }}</span></a>{% endfor %}
-</div>{% endif %}
+{% comment %}=== vLLM ==={% endcomment %}
+{% assign m_count = 0 %}{% for f in site.static_files %}{% if f.path contains '/pages/vllm/' and f.extname == '.html' %}{% assign m_count = m_count | plus: 1 %}{% endif %}{% endfor %}{% for p in site.pages %}{% if p.path contains 'pages/vllm/' and p.ext == '.md' %}{% assign m_count = m_count | plus: 1 %}{% endif %}{% endfor %}
+{% if m_count > 0 %}
+<div class="section-title">🚀 vLLM <span class="count">{{ m_count }}</span></div>
+<div class="card-list">
+{% for f in site.static_files %}{% if f.path contains '/pages/vllm/' and f.extname == '.html' %}{% assign t = f.basename | replace: '-', ' ' | replace: '_', ' ' %}<a class="card" href="{{ f.path | relative_url }}"><span class="card-icon">🌐</span><div class="card-body"><div class="card-title">{{ t }}</div></div><span class="card-tag tag-html">HTML</span></a>{% endif %}{% endfor %}
+{% for p in site.pages %}{% if p.path contains 'pages/vllm/' and p.ext == '.md' %}{% assign t = p.basename | replace: '-', ' ' | replace: '_', ' ' %}<a class="card" href="{{ p.url | relative_url }}"><span class="card-icon">📝</span><div class="card-body"><div class="card-title">{{ t }}</div></div><span class="card-tag tag-md">MD</span></a>{% endif %}{% endfor %}
+</div>
+{% endif %}
+
+{% comment %}=== Operator ==={% endcomment %}
+{% assign m_count = 0 %}{% for f in site.static_files %}{% if f.path contains '/pages/operator/' and f.extname == '.html' %}{% assign m_count = m_count | plus: 1 %}{% endif %}{% endfor %}{% for p in site.pages %}{% if p.path contains 'pages/operator/' and p.ext == '.md' %}{% assign m_count = m_count | plus: 1 %}{% endif %}{% endfor %}
+{% if m_count > 0 %}
+<div class="section-title">🧮 Operator <span class="count">{{ m_count }}</span></div>
+<div class="card-list">
+{% for f in site.static_files %}{% if f.path contains '/pages/operator/' and f.extname == '.html' %}{% assign t = f.basename | replace: '-', ' ' | replace: '_', ' ' %}<a class="card" href="{{ f.path | relative_url }}"><span class="card-icon">🌐</span><div class="card-body"><div class="card-title">{{ t }}</div></div><span class="card-tag tag-html">HTML</span></a>{% endif %}{% endfor %}
+{% for p in site.pages %}{% if p.path contains 'pages/operator/' and p.ext == '.md' %}{% assign t = p.basename | replace: '-', ' ' | replace: '_', ' ' %}<a class="card" href="{{ p.url | relative_url }}"><span class="card-icon">📝</span><div class="card-body"><div class="card-title">{{ t }}</div></div><span class="card-tag tag-md">MD</span></a>{% endif %}{% endfor %}
+</div>
+{% endif %}
+
+{% comment %}=== DeepSeek ==={% endcomment %}
+{% assign m_count = 0 %}{% for f in site.static_files %}{% if f.path contains '/pages/deepseek/' and f.extname == '.html' %}{% assign m_count = m_count | plus: 1 %}{% endif %}{% endfor %}{% for p in site.pages %}{% if p.path contains 'pages/deepseek/' and p.ext == '.md' %}{% assign m_count = m_count | plus: 1 %}{% endif %}{% endfor %}
+{% if m_count > 0 %}
+<div class="section-title">🔮 DeepSeek <span class="count">{{ m_count }}</span></div>
+<div class="card-list">
+{% for f in site.static_files %}{% if f.path contains '/pages/deepseek/' and f.extname == '.html' %}{% assign t = f.basename | replace: '-', ' ' | replace: '_', ' ' %}<a class="card" href="{{ f.path | relative_url }}"><span class="card-icon">🌐</span><div class="card-body"><div class="card-title">{{ t }}</div></div><span class="card-tag tag-html">HTML</span></a>{% endif %}{% endfor %}
+{% for p in site.pages %}{% if p.path contains 'pages/deepseek/' and p.ext == '.md' %}{% assign t = p.basename | replace: '-', ' ' | replace: '_', ' ' %}<a class="card" href="{{ p.url | relative_url }}"><span class="card-icon">📝</span><div class="card-body"><div class="card-title">{{ t }}</div></div><span class="card-tag tag-md">MD</span></a>{% endif %}{% endfor %}
+</div>
+{% endif %}
+
+{% comment %}=== SGLang ==={% endcomment %}
+{% assign m_count = 0 %}{% for f in site.static_files %}{% if f.path contains '/pages/sglang/' and f.extname == '.html' %}{% assign m_count = m_count | plus: 1 %}{% endif %}{% endfor %}{% for p in site.pages %}{% if p.path contains 'pages/sglang/' and p.ext == '.md' %}{% assign m_count = m_count | plus: 1 %}{% endif %}{% endfor %}
+{% if m_count > 0 %}
+<div class="section-title">⚡ SGLang <span class="count">{{ m_count }}</span></div>
+<div class="card-list">
+{% for f in site.static_files %}{% if f.path contains '/pages/sglang/' and f.extname == '.html' %}{% assign t = f.basename | replace: '-', ' ' | replace: '_', ' ' %}<a class="card" href="{{ f.path | relative_url }}"><span class="card-icon">🌐</span><div class="card-body"><div class="card-title">{{ t }}</div></div><span class="card-tag tag-html">HTML</span></a>{% endif %}{% endfor %}
+{% for p in site.pages %}{% if p.path contains 'pages/sglang/' and p.ext == '.md' %}{% assign t = p.basename | replace: '-', ' ' | replace: '_', ' ' %}<a class="card" href="{{ p.url | relative_url }}"><span class="card-icon">📝</span><div class="card-body"><div class="card-title">{{ t }}</div></div><span class="card-tag tag-md">MD</span></a>{% endif %}{% endfor %}
+</div>
+{% endif %}
+
+{% comment %}=== Knowledge ==={% endcomment %}
+{% assign m_count = 0 %}{% for f in site.static_files %}{% if f.path contains '/pages/knowledge/' and f.extname == '.html' %}{% assign m_count = m_count | plus: 1 %}{% endif %}{% endfor %}{% for p in site.pages %}{% if p.path contains 'pages/knowledge/' and p.ext == '.md' %}{% assign m_count = m_count | plus: 1 %}{% endif %}{% endfor %}
+{% if m_count > 0 %}
+<div class="section-title">📚 Knowledge <span class="count">{{ m_count }}</span></div>
+<div class="card-list">
+{% for f in site.static_files %}{% if f.path contains '/pages/knowledge/' and f.extname == '.html' %}{% assign t = f.basename | replace: '-', ' ' | replace: '_', ' ' %}<a class="card" href="{{ f.path | relative_url }}"><span class="card-icon">🌐</span><div class="card-body"><div class="card-title">{{ t }}</div></div><span class="card-tag tag-html">HTML</span></a>{% endif %}{% endfor %}
+{% for p in site.pages %}{% if p.path contains 'pages/knowledge/' and p.ext == '.md' %}{% assign t = p.basename | replace: '-', ' ' | replace: '_', ' ' %}<a class="card" href="{{ p.url | relative_url }}"><span class="card-icon">📝</span><div class="card-body"><div class="card-title">{{ t }}</div></div><span class="card-tag tag-md">MD</span></a>{% endif %}{% endfor %}
+</div>
+{% endif %}
+
         </div>
 
         <div class="view" id="view-type">
-          <div class="section-title">Markdown <span class="count">{% assign mc = 0 %}{% for p in site.pages %}{% if p.path contains 'pages/' and p.extname == '.md' %}{% assign mc = mc | plus: 1 %}{% endif %}{% endfor %}{{ mc }}</span></div>
-          <div class="card-list">{% for p in site.pages %}{% if p.path contains 'pages/' and p.extname == '.md' %}{% assign href = p.path | replace: '.md', '.html' %}{% assign title = p.name | replace: '.md', '' | replace: '-', ' ' | replace: '_', ' ' %}{% assign sub = p.path | remove_first: 'pages/' %}{% assign slash = sub | split: '/' | first %}{% if slash != sub %}{% assign title = slash | append: '/' | append: title %}{% endif %}
-            <a class="card" href="{{ href | relative_url }}"><span class="card-icon">📝</span><div class="card-body"><div class="card-title">{{ title }}</div></div><span class="card-tag tag-md">MD</span></a>{% endif %}{% endfor %}
+          {% assign md_count = 0 %}{% for p in site.pages %}{% if p.path contains 'pages/' and p.ext == '.md' %}{% assign md_count = md_count | plus: 1 %}{% endif %}{% endfor %}
+          {% assign h5_count = 0 %}{% for f in site.static_files %}{% if f.path contains '/pages/' and f.extname == '.html' %}{% assign h5_count = h5_count | plus: 1 %}{% endif %}{% endfor %}
+          <div class="section-title">Markdown <span class="count">{{ md_count }}</span></div>
+          <div class="card-list">
+{% for p in site.pages %}{% if p.path contains 'pages/' and p.ext == '.md' %}{% assign sub = p.path | remove_first: 'pages/' %}{% assign slash = sub | split: '/' | first %}{% assign t = p.basename | replace: '-', ' ' | replace: '_', ' ' %}{% if slash != sub %}{% assign t = slash | append: '/' | append: t %}{% endif %}
+            <a class="card" href="{{ p.url | relative_url }}"><span class="card-icon">📝</span><div class="card-body"><div class="card-title">{{ t }}</div></div><span class="card-tag tag-md">MD</span></a>{% endif %}{% endfor %}
           </div>
-          <div class="section-title">HTML5 <span class="count">{% assign hc = 0 %}{% for f in site.static_files %}{% if f.path contains 'pages/' and f.extname == '.html' %}{% assign hc = hc | plus: 1 %}{% endif %}{% endfor %}{{ hc }}</span></div>
-          <div class="card-list">{% for f in site.static_files %}{% if f.path contains 'pages/' and f.extname == '.html' %}{% assign title = f.name | replace: '.html', '' | replace: '-', ' ' | replace: '_', ' ' %}{% assign sub = f.path | remove_first: '/pages/' %}{% assign slash = sub | split: '/' | first %}{% if slash != sub %}{% assign title = slash | append: '/' | append: title %}{% endif %}
-            <a class="card" href="{{ f.path | relative_url }}"><span class="card-icon">🌐</span><div class="card-body"><div class="card-title">{{ title }}</div></div><span class="card-tag tag-html">HTML</span></a>{% endif %}{% endfor %}
+          <div class="section-title">HTML5 <span class="count">{{ h5_count }}</span></div>
+          <div class="card-list">
+{% for f in site.static_files %}{% if f.path contains '/pages/' and f.extname == '.html' %}{% assign sub = f.path | remove_first: '/pages/' %}{% assign slash = sub | split: '/' | first %}{% assign t = f.basename | replace: '-', ' ' | replace: '_', ' ' %}{% if slash != sub %}{% assign t = slash | append: '/' | append: t %}{% endif %}
+            <a class="card" href="{{ f.path | relative_url }}"><span class="card-icon">🌐</span><div class="card-body"><div class="card-title">{{ t }}</div></div><span class="card-tag tag-html">HTML</span></a>{% endif %}{% endfor %}
           </div>
         </div>
 
-        <div class="howto">
-            <strong style="color:#c9d1d9">使用方式：</strong>在 <code>pages/</code> 下建文件夹 = 建分类，丢 <code>.md</code> 或 <code>.html</code> 文件进去，push 即上线。
-        </div>
-
+        <div class="howto">在 <code>pages/</code> 下建文件夹 = 建分类，丢 <code>.md</code> 或 <code>.html</code> 文件进去 push 即上线。</div>
         <div class="footer"><a href="https://github.com/Schilings/assets">GitHub Repo</a></div>
     </div>
 
