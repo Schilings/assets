@@ -18,19 +18,49 @@ layout: null
         .container { max-width: 780px; width: 100%; padding: 48px 24px; }
         h1 { font-size: 2rem; color: #f0f6fc; margin-bottom: 4px; }
         .subtitle { color: #8b949e; margin-bottom: 24px; font-size: .95rem; }
-        .tabs { display: flex; gap: 0; margin-bottom: 24px; border-bottom: 1px solid #21262d; }
+        .tabs { display: flex; gap: 0; margin-bottom: 16px; border-bottom: 1px solid #21262d; }
         .tab { padding: 10px 20px; cursor: pointer; font-size: .9rem; font-weight: 600; color: #8b949e; border-bottom: 2px solid transparent; transition: all .15s; user-select: none; background: none; border: none; }
         .tab:hover { color: #c9d1d9; }
         .tab.active { color: #58a6ff; border-bottom-color: #58a6ff; }
-        .section-title { color: #58a6ff; font-size: .85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin: 24px 0 12px; padding-bottom: 6px; border-bottom: 1px solid #21262d; display: flex; align-items: center; gap: 8px; }
+        .toolbar { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+        .toolbar button {
+            background: #21262d; color: #8b949e; border: 1px solid #30363d;
+            padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: .78rem;
+            transition: all .15s;
+        }
+        .toolbar button:hover { color: #c9d1d9; border-color: #58a6ff; }
+        .toolbar .active { background: #1f6feb33; color: #58a6ff; border-color: #1f6feb66; }
+        .toolbar .divider { width: 1px; height: 20px; background: #30363d; margin: 0 4px; }
+        .section-title {
+            color: #58a6ff; font-size: .85rem; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 1px;
+            margin: 24px 0 12px; padding-bottom: 6px;
+            border-bottom: 1px solid #21262d;
+            display: flex; align-items: center; gap: 8px;
+            cursor: pointer; user-select: none;
+        }
+        .section-title:hover { color: #79c0ff; }
+        .section-title .arrow { font-size: .7rem; transition: transform .2s; margin-left: auto; color: #484f58; }
+        .section-group.collapsed .arrow { transform: rotate(-90deg); }
+        .section-group.collapsed .card-list { display: none; }
+        .section-group.collapsed .section-title { border-bottom: none; margin-bottom: 8px; }
         .section-title .count { background: #1f6feb33; color: #58a6ff; font-size: .72rem; padding: 1px 7px; border-radius: 10px; }
         .card-list { display: flex; flex-direction: column; gap: 10px; }
-        .card { display: flex; align-items: center; gap: 14px; background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 14px 20px; text-decoration: none; color: #c9d1d9; transition: all .15s; }
+        .card { display: flex; align-items: center; gap: 10px; background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 12px 16px; text-decoration: none; color: #c9d1d9; transition: all .15s; }
         .card:hover { border-color: #58a6ff; background: #1c2129; }
-        .card-icon { font-size: 1.2rem; flex-shrink: 0; }
+        .card.starred { border-color: #d2992266; background: #1a1714; }
+        .card.starred:hover { border-color: #d29922; }
+        .card-star {
+            flex-shrink: 0; font-size: 1.2rem; cursor: pointer;
+            color: #484f58; transition: color .15s, transform .15s;
+            user-select: none; line-height: 1; padding: 4px 2px;
+        }
+        .card-star:hover { color: #d29922; transform: scale(1.2); }
+        .card-star.active { color: #d29922; }
+        .card-icon { font-size: 1.1rem; flex-shrink: 0; }
         .card-body { flex: 1; min-width: 0; }
-        .card-title { font-size: .95rem; font-weight: 600; color: #58a6ff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .card-tag { font-size: .68rem; padding: 2px 8px; border-radius: 10px; font-weight: 600; text-transform: uppercase; flex-shrink: 0; }
+        .card-title { font-size: .9rem; font-weight: 600; color: #58a6ff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .card-tag { font-size: .66rem; padding: 1px 7px; border-radius: 10px; font-weight: 600; text-transform: uppercase; flex-shrink: 0; }
         .tag-html { background: #1f6feb22; color: #58a6ff; }
         .tag-md { background: #23863622; color: #3fb950; }
         .view { display: none; }
@@ -52,98 +82,138 @@ layout: null
             <button class="tab" data-view="type">按类型</button>
         </div>
 
+        <div class="toolbar">
+            <button id="btn-star-sort" title="星标优先">⭐ 星标优先</button>
+            <span class="divider"></span>
+            <button id="btn-expand">展开全部</button>
+            <button id="btn-collapse">收起全部</button>
+        </div>
+
         <div class="view active" id="view-topic">
 
-{% comment %}Helper: count files containing substring in path{% endcomment %}
-
-{% comment %}=== Megatron ==={% endcomment %}
-{% assign m_count = 0 %}{% for f in site.static_files %}{% if f.path contains '/pages/megatron/' and f.extname == '.html' %}{% assign m_count = m_count | plus: 1 %}{% endif %}{% endfor %}{% for p in site.pages %}{% if p.path contains 'pages/megatron/' and p.ext == '.md' %}{% assign m_count = m_count | plus: 1 %}{% endif %}{% endfor %}
-{% if m_count > 0 %}
-<div class="section-title">🧠 Megatron <span class="count">{{ m_count }}</span></div>
-<div class="card-list">
-{% for f in site.static_files %}{% if f.path contains '/pages/megatron/' and f.extname == '.html' %}{% assign t = f.basename | replace: '-', ' ' | replace: '_', ' ' %}<a class="card" href="{{ f.path | relative_url }}"><span class="card-icon">🌐</span><div class="card-body"><div class="card-title">{{ t }}</div></div><span class="card-tag tag-html">HTML</span></a>{% endif %}{% endfor %}
-{% for p in site.pages %}{% if p.path contains 'pages/megatron/' and p.ext == '.md' %}{% assign t = p.basename | replace: '-', ' ' | replace: '_', ' ' %}<a class="card" href="{{ p.url | relative_url }}"><span class="card-icon">📝</span><div class="card-body"><div class="card-title">{{ t }}</div></div><span class="card-tag tag-md">MD</span></a>{% endif %}{% endfor %}
-</div>
-{% endif %}
-
-{% comment %}=== vLLM ==={% endcomment %}
-{% assign m_count = 0 %}{% for f in site.static_files %}{% if f.path contains '/pages/vllm/' and f.extname == '.html' %}{% assign m_count = m_count | plus: 1 %}{% endif %}{% endfor %}{% for p in site.pages %}{% if p.path contains 'pages/vllm/' and p.ext == '.md' %}{% assign m_count = m_count | plus: 1 %}{% endif %}{% endfor %}
-{% if m_count > 0 %}
-<div class="section-title">🚀 vLLM <span class="count">{{ m_count }}</span></div>
-<div class="card-list">
-{% for f in site.static_files %}{% if f.path contains '/pages/vllm/' and f.extname == '.html' %}{% assign t = f.basename | replace: '-', ' ' | replace: '_', ' ' %}<a class="card" href="{{ f.path | relative_url }}"><span class="card-icon">🌐</span><div class="card-body"><div class="card-title">{{ t }}</div></div><span class="card-tag tag-html">HTML</span></a>{% endif %}{% endfor %}
-{% for p in site.pages %}{% if p.path contains 'pages/vllm/' and p.ext == '.md' %}{% assign t = p.basename | replace: '-', ' ' | replace: '_', ' ' %}<a class="card" href="{{ p.url | relative_url }}"><span class="card-icon">📝</span><div class="card-body"><div class="card-title">{{ t }}</div></div><span class="card-tag tag-md">MD</span></a>{% endif %}{% endfor %}
-</div>
-{% endif %}
-
-{% comment %}=== Operator ==={% endcomment %}
-{% assign m_count = 0 %}{% for f in site.static_files %}{% if f.path contains '/pages/operator/' and f.extname == '.html' %}{% assign m_count = m_count | plus: 1 %}{% endif %}{% endfor %}{% for p in site.pages %}{% if p.path contains 'pages/operator/' and p.ext == '.md' %}{% assign m_count = m_count | plus: 1 %}{% endif %}{% endfor %}
-{% if m_count > 0 %}
-<div class="section-title">🧮 Operator <span class="count">{{ m_count }}</span></div>
-<div class="card-list">
-{% for f in site.static_files %}{% if f.path contains '/pages/operator/' and f.extname == '.html' %}{% assign t = f.basename | replace: '-', ' ' | replace: '_', ' ' %}<a class="card" href="{{ f.path | relative_url }}"><span class="card-icon">🌐</span><div class="card-body"><div class="card-title">{{ t }}</div></div><span class="card-tag tag-html">HTML</span></a>{% endif %}{% endfor %}
-{% for p in site.pages %}{% if p.path contains 'pages/operator/' and p.ext == '.md' %}{% assign t = p.basename | replace: '-', ' ' | replace: '_', ' ' %}<a class="card" href="{{ p.url | relative_url }}"><span class="card-icon">📝</span><div class="card-body"><div class="card-title">{{ t }}</div></div><span class="card-tag tag-md">MD</span></a>{% endif %}{% endfor %}
-</div>
-{% endif %}
-
-{% comment %}=== DeepSeek ==={% endcomment %}
-{% assign m_count = 0 %}{% for f in site.static_files %}{% if f.path contains '/pages/deepseek/' and f.extname == '.html' %}{% assign m_count = m_count | plus: 1 %}{% endif %}{% endfor %}{% for p in site.pages %}{% if p.path contains 'pages/deepseek/' and p.ext == '.md' %}{% assign m_count = m_count | plus: 1 %}{% endif %}{% endfor %}
-{% if m_count > 0 %}
-<div class="section-title">🔮 DeepSeek <span class="count">{{ m_count }}</span></div>
-<div class="card-list">
-{% for f in site.static_files %}{% if f.path contains '/pages/deepseek/' and f.extname == '.html' %}{% assign t = f.basename | replace: '-', ' ' | replace: '_', ' ' %}<a class="card" href="{{ f.path | relative_url }}"><span class="card-icon">🌐</span><div class="card-body"><div class="card-title">{{ t }}</div></div><span class="card-tag tag-html">HTML</span></a>{% endif %}{% endfor %}
-{% for p in site.pages %}{% if p.path contains 'pages/deepseek/' and p.ext == '.md' %}{% assign t = p.basename | replace: '-', ' ' | replace: '_', ' ' %}<a class="card" href="{{ p.url | relative_url }}"><span class="card-icon">📝</span><div class="card-body"><div class="card-title">{{ t }}</div></div><span class="card-tag tag-md">MD</span></a>{% endif %}{% endfor %}
-</div>
-{% endif %}
-
-{% comment %}=== SGLang ==={% endcomment %}
-{% assign m_count = 0 %}{% for f in site.static_files %}{% if f.path contains '/pages/sglang/' and f.extname == '.html' %}{% assign m_count = m_count | plus: 1 %}{% endif %}{% endfor %}{% for p in site.pages %}{% if p.path contains 'pages/sglang/' and p.ext == '.md' %}{% assign m_count = m_count | plus: 1 %}{% endif %}{% endfor %}
-{% if m_count > 0 %}
-<div class="section-title">⚡ SGLang <span class="count">{{ m_count }}</span></div>
-<div class="card-list">
-{% for f in site.static_files %}{% if f.path contains '/pages/sglang/' and f.extname == '.html' %}{% assign t = f.basename | replace: '-', ' ' | replace: '_', ' ' %}<a class="card" href="{{ f.path | relative_url }}"><span class="card-icon">🌐</span><div class="card-body"><div class="card-title">{{ t }}</div></div><span class="card-tag tag-html">HTML</span></a>{% endif %}{% endfor %}
-{% for p in site.pages %}{% if p.path contains 'pages/sglang/' and p.ext == '.md' %}{% assign t = p.basename | replace: '-', ' ' | replace: '_', ' ' %}<a class="card" href="{{ p.url | relative_url }}"><span class="card-icon">📝</span><div class="card-body"><div class="card-title">{{ t }}</div></div><span class="card-tag tag-md">MD</span></a>{% endif %}{% endfor %}
-</div>
-{% endif %}
-
-{% comment %}=== Knowledge ==={% endcomment %}
-{% assign m_count = 0 %}{% for f in site.static_files %}{% if f.path contains '/pages/knowledge/' and f.extname == '.html' %}{% assign m_count = m_count | plus: 1 %}{% endif %}{% endfor %}{% for p in site.pages %}{% if p.path contains 'pages/knowledge/' and p.ext == '.md' %}{% assign m_count = m_count | plus: 1 %}{% endif %}{% endfor %}
-{% if m_count > 0 %}
-<div class="section-title">📚 Knowledge <span class="count">{{ m_count }}</span></div>
-<div class="card-list">
-{% for f in site.static_files %}{% if f.path contains '/pages/knowledge/' and f.extname == '.html' %}{% assign t = f.basename | replace: '-', ' ' | replace: '_', ' ' %}<a class="card" href="{{ f.path | relative_url }}"><span class="card-icon">🌐</span><div class="card-body"><div class="card-title">{{ t }}</div></div><span class="card-tag tag-html">HTML</span></a>{% endif %}{% endfor %}
-{% for p in site.pages %}{% if p.path contains 'pages/knowledge/' and p.ext == '.md' %}{% assign t = p.basename | replace: '-', ' ' | replace: '_', ' ' %}<a class="card" href="{{ p.url | relative_url }}"><span class="card-icon">📝</span><div class="card-body"><div class="card-title">{{ t }}</div></div><span class="card-tag tag-md">MD</span></a>{% endif %}{% endfor %}
-</div>
-{% endif %}
+{% assign cats = "megatron:vLLM:operator:DeepSeek:SGLang:Knowledge" | split: ":" %}
+{% assign ic = "megatron:🧠|vllm:🚀|operator:🧮|deepseek:🔮|sglang:⚡|knowledge:📚" | split: "|" %}
+{% for c in cats %}
+  {% assign cid = c | downcase %}
+  {% assign h5list = "" | split: "" %}
+  {% assign mdlist = "" | split: "" %}
+  {% for f in site.static_files %}{% if f.path contains '/' | append: cid | append: '/' and f.extname == '.html' %}{% assign h5list = h5list | push: f %}{% endif %}{% endfor %}
+  {% for p in site.pages %}{% if p.path contains 'pages/' | append: cid | append: '/' and p.ext == '.md' %}{% assign mdlist = mdlist | push: p %}{% endif %}{% endfor %}
+  {% assign total = h5list.size | plus: mdlist.size %}{% if total > 0 %}
+  {% assign ico = "📁" %}{% for pair in ic %}{% assign parts = pair | split: ":" %}{% if parts[0] == cid %}{% assign ico = parts[1] %}{% endif %}{% endfor %}
+<div class="section-group">
+  <div class="section-title">{{ ico }} {{ c }} <span class="count">{{ total }}</span><span class="arrow">▼</span></div>
+  <div class="card-list">{% assign items = "" | split: "" %}
+    {% for f in h5list %}{% assign t = f.basename %}<a class="card" href="{{ f.path | relative_url }}" data-path="{{ f.path }}"><span class="card-star" data-path="{{ f.path }}">☆</span><span class="card-icon">🌐</span><div class="card-body"><div class="card-title">{{ t }}</div></div><span class="card-tag tag-html">HTML</span></a>{% endfor %}
+    {% for p in mdlist %}{% assign t = p.basename %}<a class="card" href="{{ p.url | relative_url }}" data-path="{{ p.path }}"><span class="card-star" data-path="{{ p.path }}">☆</span><span class="card-icon">📝</span><div class="card-body"><div class="card-title">{{ t }}</div></div><span class="card-tag tag-md">MD</span></a>{% endfor %}
+  </div>
+</div>{% endif %}
+{% endfor %}
 
         </div>
 
         <div class="view" id="view-type">
           {% assign md_count = 0 %}{% for p in site.pages %}{% if p.path contains 'pages/' and p.ext == '.md' %}{% assign md_count = md_count | plus: 1 %}{% endif %}{% endfor %}
           {% assign h5_count = 0 %}{% for f in site.static_files %}{% if f.path contains '/pages/' and f.extname == '.html' %}{% assign h5_count = h5_count | plus: 1 %}{% endif %}{% endfor %}
-          <div class="section-title">Markdown <span class="count">{{ md_count }}</span></div>
+          <div class="section-group">
+          <div class="section-title">📝 Markdown <span class="count">{{ md_count }}</span><span class="arrow">▼</span></div>
           <div class="card-list">
-{% for p in site.pages %}{% if p.path contains 'pages/' and p.ext == '.md' %}{% assign sub = p.path | remove_first: 'pages/' %}{% assign slash = sub | split: '/' | first %}{% assign t = p.basename | replace: '-', ' ' | replace: '_', ' ' %}{% if slash != sub %}{% assign t = slash | append: '/' | append: t %}{% endif %}
-            <a class="card" href="{{ p.url | relative_url }}"><span class="card-icon">📝</span><div class="card-body"><div class="card-title">{{ t }}</div></div><span class="card-tag tag-md">MD</span></a>{% endif %}{% endfor %}
+{% for p in site.pages %}{% if p.path contains 'pages/' and p.ext == '.md' %}{% assign sub = p.path | remove_first: 'pages/' %}{% assign slash = sub | split: '/' | first %}{% assign t = p.basename %}{% if slash != sub %}{% assign t = slash | append: '/' | append: t %}{% endif %}
+            <a class="card" href="{{ p.url | relative_url }}" data-path="{{ p.path }}"><span class="card-star" data-path="{{ p.path }}">☆</span><span class="card-icon">📝</span><div class="card-body"><div class="card-title">{{ t }}</div></div><span class="card-tag tag-md">MD</span></a>{% endif %}{% endfor %}
           </div>
-          <div class="section-title">HTML5 <span class="count">{{ h5_count }}</span></div>
+          </div>
+          <div class="section-group">
+          <div class="section-title">🌐 HTML5 <span class="count">{{ h5_count }}</span><span class="arrow">▼</span></div>
           <div class="card-list">
-{% for f in site.static_files %}{% if f.path contains '/pages/' and f.extname == '.html' %}{% assign sub = f.path | remove_first: '/pages/' %}{% assign slash = sub | split: '/' | first %}{% assign t = f.basename | replace: '-', ' ' | replace: '_', ' ' %}{% if slash != sub %}{% assign t = slash | append: '/' | append: t %}{% endif %}
-            <a class="card" href="{{ f.path | relative_url }}"><span class="card-icon">🌐</span><div class="card-body"><div class="card-title">{{ t }}</div></div><span class="card-tag tag-html">HTML</span></a>{% endif %}{% endfor %}
+{% for f in site.static_files %}{% if f.path contains '/pages/' and f.extname == '.html' %}{% assign sub = f.path | remove_first: '/pages/' %}{% assign slash = sub | split: '/' | first %}{% assign t = f.basename %}{% if slash != sub %}{% assign t = slash | append: '/' | append: t %}{% endif %}
+            <a class="card" href="{{ f.path | relative_url }}" data-path="{{ f.path }}"><span class="card-star" data-path="{{ f.path }}">☆</span><span class="card-icon">🌐</span><div class="card-body"><div class="card-title">{{ t }}</div></div><span class="card-tag tag-html">HTML</span></a>{% endif %}{% endfor %}
+          </div>
           </div>
         </div>
 
-        <div class="howto">在 <code>pages/</code> 下建文件夹 = 建分类，丢 <code>.md</code> 或 <code>.html</code> 文件进去 push 即上线。</div>
+        <div class="howto">在 <code>pages/</code> 下建文件夹 = 建分类，丢 <code>.md</code> 或 <code>.html</code> 文件进去 push 即上线。点击左侧 ☆ 可收藏（星标存入浏览器本地）。</div>
         <div class="footer"><a href="https://github.com/Schilings/assets">GitHub Repo</a></div>
     </div>
 
 <script>
+// ── Star state (localStorage) ──
+const STARS_KEY = 'kb_jekyll_stars';
+let stars = new Set();
+try { stars = new Set(JSON.parse(localStorage.getItem(STARS_KEY) || '[]')); } catch { stars = new Set(); }
+function save() { localStorage.setItem(STARS_KEY, JSON.stringify([...stars])); }
+function toggle(p) { stars.has(p) ? stars.delete(p) : stars.add(p); save(); applyCard(p); }
+
+function initStars() {
+    document.querySelectorAll('.card').forEach(c => {
+        const p = c.dataset.path;
+        if (stars.has(p)) applyCard(p);
+    });
+}
+
+function applyCard(path) {
+    const on = stars.has(path);
+    document.querySelectorAll(`.card[data-path="${CSS.escape(path)}"]`).forEach(c => {
+        c.classList.toggle('starred', on);
+        const s = c.querySelector('.card-star');
+        s.classList.toggle('active', on);
+        s.textContent = on ? '⭐' : '☆';
+    });
+}
+
+// Star click
+document.addEventListener('click', e => {
+    const star = e.target.closest('.card-star');
+    if (star) {
+        e.preventDefault();
+        e.stopPropagation();
+        toggle(star.dataset.path);
+    }
+});
+
+// ── Collapse / Expand sections ──
+document.addEventListener('click', e => {
+    const hdr = e.target.closest('.section-title');
+    if (hdr && !e.target.closest('.card-star')) {
+        hdr.parentElement.classList.toggle('collapsed');
+    }
+});
+document.getElementById('btn-expand').addEventListener('click', () => {
+    document.querySelectorAll('.section-group.collapsed').forEach(g => g.classList.remove('collapsed'));
+});
+document.getElementById('btn-collapse').addEventListener('click', () => {
+    document.querySelectorAll('.section-group').forEach(g => g.classList.add('collapsed'));
+});
+
+// ── Star sort ──
+let starSort = false;
+document.getElementById('btn-star-sort').addEventListener('click', function() {
+    starSort = !starSort;
+    this.classList.toggle('active', starSort);
+    document.querySelectorAll('.card-list').forEach(list => {
+        const cards = [...list.children];
+        cards.sort((a,b) => {
+            if (starSort) {
+                const sa = stars.has(a.dataset.path) ? 1 : 0;
+                const sb = stars.has(b.dataset.path) ? 1 : 0;
+                return sb - sa;
+            }
+            return 0;
+        });
+        cards.forEach(c => list.appendChild(c));
+    });
+});
+
+// ── Tabs sync ──
 document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
     document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
     document.querySelectorAll('.view').forEach(x => x.classList.remove('active'));
     t.classList.add('active');
     document.getElementById('view-'+t.dataset.view).classList.add('active');
+    starSort = false;
+    document.getElementById('btn-star-sort').classList.remove('active');
 }));
+
+initStars();
 </script>
 </body>
 </html>
