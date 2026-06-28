@@ -76,30 +76,30 @@ layout: null
 {% assign names = "Megatron,vLLM,Operator,DeepSeek,SGLang,Knowledge" | split: "," %}
 {% for d in dirs %}{% assign files = "" | split: "" %}
 {% for f in site.static_files %}{% if f.path contains '/pages/' and f.path contains d and f.extname == '.html' %}{% assign files = files | push: f %}{% endif %}{% endfor %}
-{% for p in site.pages %}{% if p.path contains 'pages/' and p.path contains d and p.extname == '.md' %}{% assign files = files | push: p %}{% endif %}{% endfor %}
+{% for p in site.pages %}{% if p.path contains 'pages/' and p.path contains d and p.path contains '.md' %}{% assign files = files | push: p %}{% endif %}{% endfor %}
 {% assign fc = files | size %}{% if fc > 0 %}
 <div class="section-group">
 <div class="section-title">{{ icons[forloop.index0] }} {{ names[forloop.index0] }} <span class="count">{{ fc }}</span><span class="arrow">▼</span></div>
-<div class="card-list">{% for f in files %}{% assign ext = f.extname %}{% assign is_md = false %}{% if ext == '.md' %}{% assign is_md = true %}{% assign href = f.path | replace: '.md', '.html' %}{% else %}{% assign href = f.path %}{% endif %}{% assign title = f.name | replace: ext, '' %}{% assign icon = '🌐' %}{% assign tag = 'HTML' %}{% assign cls = 'tag-html' %}{% if is_md %}{% assign icon = '📝' %}{% assign tag = 'MD' %}{% assign cls = 'tag-md' %}{% endif %}
+<div class="card-list">{% for f in files %}{% assign ext = f.extname %}{% assign is_md = false %}{% if f.path contains '.md' %}{% assign is_md = true %}{% assign href = f.path | replace: '.md', '.html' %}{% else %}{% assign href = f.path %}{% endif %}{% assign title = f.name | replace: ext, '' %}{% assign icon = '🌐' %}{% assign tag = 'HTML' %}{% assign cls = 'tag-html' %}{% if is_md %}{% assign icon = '📝' %}{% assign tag = 'MD' %}{% assign cls = 'tag-md' %}{% endif %}
 <a class="card" href="{{ href | relative_url }}" data-path="{{ f.path }}"><span class="card-star" data-path="{{ f.path }}">☆</span><span class="card-icon">{{ icon }}</span><div class="card-body"><div class="card-title">{{ title }}</div></div><span class="card-tag {{ cls }}">{{ tag }}</span></a>{% endfor %}
 </div>
 </div>{% endif %}{% endfor %}
-{% assign uncat = "" | split: "" %}{% for f in site.static_files %}{% if f.path contains '/pages/' and f.extname == '.html' %}{% assign rel = f.path | remove_first: '/pages/' %}{% assign parts = rel | split: '/' %}{% if parts.size == 1 %}{% assign uncat = uncat | push: f %}{% endif %}{% endif %}{% endfor %}{% for p in site.pages %}{% if p.path contains 'pages/' and p.extname == '.md' %}{% assign rel = p.path | remove_first: 'pages/' %}{% assign parts = rel | split: '/' %}{% if parts.size == 1 %}{% assign uncat = uncat | push: p %}{% endif %}{% endif %}{% endfor %}
+{% assign uncat = "" | split: "" %}{% for f in site.static_files %}{% if f.path contains '/pages/' and f.extname == '.html' %}{% assign rel = f.path | remove_first: '/pages/' %}{% assign parts = rel | split: '/' %}{% if parts.size == 1 %}{% assign uncat = uncat | push: f %}{% endif %}{% endif %}{% endfor %}{% for p in site.pages %}{% if p.path contains 'pages/' and p.path contains '.md' %}{% assign rel = p.path | remove_first: 'pages/' %}{% assign parts = rel | split: '/' %}{% if parts.size == 1 %}{% assign uncat = uncat | push: p %}{% endif %}{% endif %}{% endfor %}
 {% assign uc = uncat | size %}{% if uc > 0 %}
 <div class="section-group">
 <div class="section-title">📁 其他 <span class="count">{{ uc }}</span><span class="arrow">▼</span></div>
-<div class="card-list">{% for f in uncat %}{% assign ext = f.extname %}{% assign is_md = false %}{% if ext == '.md' %}{% assign is_md = true %}{% assign href = f.path | replace: '.md', '.html' %}{% else %}{% assign href = f.path %}{% endif %}{% assign title = f.name | replace: ext, '' %}{% assign icon = '🌐' %}{% assign tag = 'HTML' %}{% assign cls = 'tag-html' %}{% if is_md %}{% assign icon = '📝' %}{% assign tag = 'MD' %}{% assign cls = 'tag-md' %}{% endif %}
+<div class="card-list">{% for f in uncat %}{% assign is_md = false %}{% if f.path contains '.md' %}{% assign is_md = true %}{% assign href = f.path | replace: '.md', '.html' %}{% else %}{% assign href = f.path %}{% endif %}{% assign title = f.name | replace: f.extname, '' %}{% assign icon = '🌐' %}{% assign tag = 'HTML' %}{% assign cls = 'tag-html' %}{% if is_md %}{% assign icon = '📝' %}{% assign tag = 'MD' %}{% assign cls = 'tag-md' %}{% endif %}
 <a class="card" href="{{ href | relative_url }}" data-path="{{ f.path }}"><span class="card-star" data-path="{{ f.path }}">☆</span><span class="card-icon">{{ icon }}</span><div class="card-body"><div class="card-title">{{ title }}</div></div><span class="card-tag {{ cls }}">{{ tag }}</span></a>{% endfor %}
 </div>
 </div>{% endif %}
         </div>
 
         <div class="view" id="view-type">
-{% assign mc = 0 %}{% for p in site.pages %}{% if p.path contains 'pages/' and p.extname == '.md' %}{% assign mc = mc | plus: 1 %}{% endif %}{% endfor %}
+{% assign mc = 0 %}{% for p in site.pages %}{% if p.path contains 'pages/' and p.path contains '.md' %}{% assign mc = mc | plus: 1 %}{% endif %}{% endfor %}
 {% assign hc = 0 %}{% for f in site.static_files %}{% if f.path contains '/pages/' and f.extname == '.html' %}{% assign hc = hc | plus: 1 %}{% endif %}{% endfor %}
 <div class="section-group">
 <div class="section-title">📝 Markdown <span class="count">{{ mc }}</span><span class="arrow">▼</span></div>
-<div class="card-list">{% for p in site.pages %}{% if p.path contains 'pages/' and p.extname == '.md' %}{% assign title = p.name | replace: '.md', '' %}{% assign sub = p.path | remove_first: 'pages/' %}{% assign slash = sub | split: '/' | first %}{% if slash != sub %}{% assign title = slash | append: '/' | append: title %}{% endif %}
+<div class="card-list">{% for p in site.pages %}{% if p.path contains 'pages/' and p.path contains '.md' %}{% assign title = p.name | replace: '.md', '' %}{% assign sub = p.path | remove_first: 'pages/' %}{% assign slash = sub | split: '/' | first %}{% if slash != sub %}{% assign title = slash | append: '/' | append: title %}{% endif %}
 <a class="card" href="{{ p.path | replace: '.md', '.html' | relative_url }}" data-path="{{ p.path }}"><span class="card-star" data-path="{{ p.path }}">☆</span><span class="card-icon">📝</span><div class="card-body"><div class="card-title">{{ title }}</div></div><span class="card-tag tag-md">MD</span></a>{% endif %}{% endfor %}
 </div>
 </div>
