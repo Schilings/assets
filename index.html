@@ -97,8 +97,10 @@ layout: null
   {% assign cid = c | downcase %}
   {% assign h5list = "" | split: "" %}
   {% assign mdlist = "" | split: "" %}
-  {% for f in site.static_files %}{% if f.path contains '/' | append: cid | append: '/' and f.extname == '.html' %}{% assign h5list = h5list | push: f %}{% endif %}{% endfor %}
-  {% for p in site.pages %}{% if p.path contains 'pages/' | append: cid | append: '/' and p.ext == '.md' %}{% assign mdlist = mdlist | push: p %}{% endif %}{% endfor %}
+  {% capture pat_h5 %}/{{ cid }}/{% endcapture %}
+  {% capture pat_md %}pages/{{ cid }}/{% endcapture %}
+  {% for f in site.static_files %}{% if f.path contains pat_h5 and f.extname == '.html' %}{% assign h5list = h5list | push: f %}{% endif %}{% endfor %}
+  {% for p in site.pages %}{% if p.path contains pat_md and p.extname == '.md' %}{% assign mdlist = mdlist | push: p %}{% endif %}{% endfor %}
   {% assign total = h5list.size | plus: mdlist.size %}{% if total > 0 %}
   {% assign ico = "📁" %}{% for pair in ic %}{% assign parts = pair | split: ":" %}{% if parts[0] == cid %}{% assign ico = parts[1] %}{% endif %}{% endfor %}
 <div class="section-group">
@@ -113,12 +115,12 @@ layout: null
         </div>
 
         <div class="view" id="view-type">
-          {% assign md_count = 0 %}{% for p in site.pages %}{% if p.path contains 'pages/' and p.ext == '.md' %}{% assign md_count = md_count | plus: 1 %}{% endif %}{% endfor %}
+          {% assign md_count = 0 %}{% for p in site.pages %}{% if p.path contains 'pages/' and p.extname == '.md' %}{% assign md_count = md_count | plus: 1 %}{% endif %}{% endfor %}
           {% assign h5_count = 0 %}{% for f in site.static_files %}{% if f.path contains '/pages/' and f.extname == '.html' %}{% assign h5_count = h5_count | plus: 1 %}{% endif %}{% endfor %}
           <div class="section-group">
           <div class="section-title">📝 Markdown <span class="count">{{ md_count }}</span><span class="arrow">▼</span></div>
           <div class="card-list">
-{% for p in site.pages %}{% if p.path contains 'pages/' and p.ext == '.md' %}{% assign sub = p.path | remove_first: 'pages/' %}{% assign slash = sub | split: '/' | first %}{% assign t = p.basename %}{% if slash != sub %}{% assign t = slash | append: '/' | append: t %}{% endif %}
+{% for p in site.pages %}{% if p.path contains 'pages/' and p.extname == '.md' %}{% assign sub = p.path | remove_first: 'pages/' %}{% assign slash = sub | split: '/' | first %}{% assign t = p.basename %}{% if slash != sub %}{% assign t = slash | append: '/' | append: t %}{% endif %}
             <a class="card" href="{{ p.url | relative_url }}" data-path="{{ p.path }}"><span class="card-star" data-path="{{ p.path }}">☆</span><span class="card-icon">📝</span><div class="card-body"><div class="card-title">{{ t }}</div></div><span class="card-tag tag-md">MD</span></a>{% endif %}{% endfor %}
           </div>
           </div>

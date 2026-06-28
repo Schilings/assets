@@ -1,3 +1,9 @@
+---
+title: DeepGEMM Scheduler 深度源码解析
+layout: default
+category: deepseek
+---
+
 # DeepGEMM Scheduler 深度源码解析
 
 > 逐行剖析 `gemm.cuh`，从 work-stealing 到 swizzle，覆盖 6 种 GEMM 类型的所有分支差异
